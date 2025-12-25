@@ -88,7 +88,11 @@ SysDes lets you **draw freely**, then uses **AI to understand** your intent, **g
 ## 🖼️ Demo
 
 <p align="center">
-  <i>Screenshots coming soon...</i>
+  <img width="1901" height="920" alt="image" src="https://github.com/user-attachments/assets/22271753-68c9-4dd0-a0d4-c44708170ebb" />
+  <img width="1903" height="920" alt="image" src="https://github.com/user-attachments/assets/89c60ed0-ab29-4249-9a8b-6577554dd2b4" />
+  <img width="1898" height="920" alt="image" src="https://github.com/user-attachments/assets/2dec6eb5-ccae-4ff0-9005-afa2f96cec00" />
+  <img width="1900" height="917" alt="image" src="https://github.com/user-attachments/assets/46e548f6-e240-4463-b8c8-87f54bc994cc" />
+
 </p>
 
 <!-- 
