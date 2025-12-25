@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { 
   Plus, 
@@ -9,14 +9,15 @@ import {
   MoreHorizontal,
   Clock,
   Trash2,
-  Copy,
   ExternalLink,
   FolderOpen,
   LogOut,
   Settings,
-  User
+  User,
+  Loader2
 } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -37,56 +38,92 @@ import {
 import { Label } from "@/components/ui/label";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useAuthContext } from "@/providers/auth-provider";
+import { useProjects } from "@/hooks/use-projects";
+import { Project } from "@/lib/api";
 
-// Mock data for projects
-const mockProjects = [
-  {
-    id: "1",
-    name: "E-commerce Platform",
-    description: "Microservices architecture for online store",
-    updatedAt: "2 hours ago",
-    thumbnail: null,
-  },
-  {
-    id: "2", 
-    name: "Chat Application",
-    description: "Real-time messaging system with WebSocket",
-    updatedAt: "1 day ago",
-    thumbnail: null,
-  },
-  {
-    id: "3",
-    name: "API Gateway",
-    description: "Central gateway for microservices",
-    updatedAt: "3 days ago",
-    thumbnail: null,
-  },
-  {
-    id: "4",
-    name: "ML Pipeline",
-    description: "Data processing and model training workflow",
-    updatedAt: "1 week ago",
-    thumbnail: null,
-  },
-];
+// Format relative time
+function formatRelativeTime(dateString: string): string {
+  const date = new Date(dateString);
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffMins = Math.floor(diffMs / 60000);
+  const diffHours = Math.floor(diffMs / 3600000);
+  const diffDays = Math.floor(diffMs / 86400000);
+
+  if (diffMins < 1) return "Just now";
+  if (diffMins < 60) return `${diffMins} minute${diffMins > 1 ? "s" : ""} ago`;
+  if (diffHours < 24) return `${diffHours} hour${diffHours > 1 ? "s" : ""} ago`;
+  if (diffDays < 7) return `${diffDays} day${diffDays > 1 ? "s" : ""} ago`;
+  return date.toLocaleDateString();
+}
 
 export default function DashboardPage() {
+  const router = useRouter();
   const [searchQuery, setSearchQuery] = useState("");
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [newProjectName, setNewProjectName] = useState("");
-  const { user, logout } = useAuthContext();
+  const [newProjectDescription, setNewProjectDescription] = useState("");
+  const [isCreating, setIsCreating] = useState(false);
+  const { user, logout, isAuthenticated, isLoading: authLoading } = useAuthContext();
+  const { projects, isLoading, error, fetchProjects, createProject, deleteProject } = useProjects();
 
-  const filteredProjects = mockProjects.filter(project =>
+  // Fetch projects on mount when authenticated
+  useEffect(() => {
+    if (isAuthenticated && !authLoading) {
+      fetchProjects();
+    }
+  }, [isAuthenticated, authLoading, fetchProjects]);
+
+  // Redirect to login if not authenticated
+  useEffect(() => {
+    if (!authLoading && !isAuthenticated) {
+      router.push("/login");
+    }
+  }, [authLoading, isAuthenticated, router]);
+
+  const filteredProjects = projects.filter(project =>
     project.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    project.description.toLowerCase().includes(searchQuery.toLowerCase())
+    (project.description?.toLowerCase().includes(searchQuery.toLowerCase()) ?? false)
   );
 
-  const handleCreateProject = () => {
-    // TODO: Implement project creation
-    console.log("Creating project:", newProjectName);
-    setIsCreateDialogOpen(false);
-    setNewProjectName("");
+  const handleCreateProject = async () => {
+    if (!newProjectName.trim()) return;
+    
+    setIsCreating(true);
+    try {
+      const project = await createProject({ 
+        name: newProjectName, 
+        description: newProjectDescription || undefined 
+      });
+      setIsCreateDialogOpen(false);
+      setNewProjectName("");
+      setNewProjectDescription("");
+      // Navigate to the new project's canvas
+      router.push(`/canvas/${project.id}`);
+    } catch (err) {
+      console.error("Failed to create project:", err);
+    } finally {
+      setIsCreating(false);
+    }
   };
+
+  const handleDeleteProject = async (projectId: string) => {
+    if (!confirm("Are you sure you want to delete this project?")) return;
+    try {
+      await deleteProject(projectId);
+    } catch (err) {
+      console.error("Failed to delete project:", err);
+    }
+  };
+
+  // Show loading while checking auth
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-purple-500" />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-[#0a0a0a] text-white">
@@ -133,23 +170,40 @@ export default function DashboardPage() {
                         className="bg-white/5 border-white/10 focus:border-purple-500"
                       />
                     </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="description">Description (optional)</Label>
+                      <textarea
+                        id="description"
+                        placeholder="Brief description of your system design..."
+                        value={newProjectDescription}
+                        onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setNewProjectDescription(e.target.value)}
+                        className="flex w-full rounded-md border border-white/10 bg-white/5 px-3 py-2 text-sm placeholder:text-gray-500 focus:outline-none focus:border-purple-500 min-h-[80px] resize-none"
+                      />
+                    </div>
                   </div>
                   <div className="flex justify-end gap-3">
                     <Button 
                       variant="ghost" 
                       onClick={() => setIsCreateDialogOpen(false)}
                       className="text-gray-400 hover:text-white"
+                      disabled={isCreating}
                     >
                       Cancel
                     </Button>
-                    <Link href="/canvas/new">
-                      <Button 
-                        onClick={handleCreateProject}
-                        className="bg-white text-black hover:bg-gray-200"
-                      >
-                        Create project
-                      </Button>
-                    </Link>
+                    <Button 
+                      onClick={handleCreateProject}
+                      className="bg-white text-black hover:bg-gray-200"
+                      disabled={isCreating || !newProjectName.trim()}
+                    >
+                      {isCreating ? (
+                        <>
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                          Creating...
+                        </>
+                      ) : (
+                        "Create project"
+                      )}
+                    </Button>
                   </div>
                 </DialogContent>
               </Dialog>
@@ -218,8 +272,25 @@ export default function DashboardPage() {
           </div>
         </div>
 
+        {/* Loading state */}
+        {isLoading && projects.length === 0 && (
+          <div className="flex items-center justify-center py-20">
+            <Loader2 className="w-8 h-8 animate-spin text-purple-500" />
+          </div>
+        )}
+
+        {/* Error state */}
+        {error && (
+          <div className="text-center py-20">
+            <p className="text-red-400 mb-4">{error}</p>
+            <Button onClick={fetchProjects} variant="outline">
+              Try again
+            </Button>
+          </div>
+        )}
+
         {/* Projects grid */}
-        {filteredProjects.length > 0 ? (
+        {!isLoading && !error && filteredProjects.length > 0 ? (
           <motion.div 
             className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4"
             initial="hidden"
@@ -260,11 +331,11 @@ export default function DashboardPage() {
                   visible: { opacity: 1, y: 0 }
                 }}
               >
-                <ProjectCard project={project} />
+                <ProjectCard project={project} onDelete={handleDeleteProject} />
               </motion.div>
             ))}
           </motion.div>
-        ) : (
+        ) : !isLoading && !error && (
           <div className="text-center py-20">
             <div className="w-16 h-16 rounded-2xl bg-white/5 flex items-center justify-center mx-auto mb-4">
               <FolderOpen className="w-8 h-8 text-gray-500" />
@@ -293,7 +364,7 @@ export default function DashboardPage() {
 }
 
 // Project card component
-function ProjectCard({ project }: { project: typeof mockProjects[0] }) {
+function ProjectCard({ project, onDelete }: { project: Project; onDelete: (id: string) => void }) {
   return (
     <div className="group relative h-full rounded-xl border border-white/5 bg-white/[0.02] hover:bg-white/[0.04] hover:border-white/10 transition-all duration-300 overflow-hidden">
       <Link href={`/canvas/${project.id}`}>
@@ -308,11 +379,11 @@ function ProjectCard({ project }: { project: typeof mockProjects[0] }) {
             {project.name}
           </h3>
           <p className="text-sm text-gray-400 line-clamp-2 mb-3">
-            {project.description}
+            {project.description || "No description"}
           </p>
           <div className="flex items-center gap-1.5 text-xs text-gray-500">
             <Clock className="w-3 h-3" />
-            {project.updatedAt}
+            {formatRelativeTime(project.updated_at)}
           </div>
         </div>
       </Link>
@@ -330,16 +401,18 @@ function ProjectCard({ project }: { project: typeof mockProjects[0] }) {
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="bg-[#111111] border-white/10 text-white">
-            <DropdownMenuItem className="text-gray-300 focus:text-white focus:bg-white/5">
+            <DropdownMenuItem 
+              className="text-gray-300 focus:text-white focus:bg-white/5"
+              onClick={() => window.open(`/canvas/${project.id}`, '_blank')}
+            >
               <ExternalLink className="w-4 h-4 mr-2" />
               Open in new tab
             </DropdownMenuItem>
-            <DropdownMenuItem className="text-gray-300 focus:text-white focus:bg-white/5">
-              <Copy className="w-4 h-4 mr-2" />
-              Duplicate
-            </DropdownMenuItem>
             <DropdownMenuSeparator className="bg-white/10" />
-            <DropdownMenuItem className="text-red-400 focus:text-red-400 focus:bg-red-500/10">
+            <DropdownMenuItem 
+              className="text-red-400 focus:text-red-400 focus:bg-red-500/10"
+              onClick={() => onDelete(project.id)}
+            >
               <Trash2 className="w-4 h-4 mr-2" />
               Delete
             </DropdownMenuItem>

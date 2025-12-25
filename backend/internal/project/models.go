@@ -8,14 +8,14 @@ import (
 
 // Project represents a system design project
 type Project struct {
-	ID          uuid.UUID  `json:"id"`
-	UserID      uuid.UUID  `json:"user_id"`
-	Name        string     `json:"name"`
-	Description string     `json:"description"`
-	IsPublic    bool       `json:"is_public"`
-	PublicSlug  *string    `json:"public_slug,omitempty"`
-	CreatedAt   time.Time  `json:"created_at"`
-	UpdatedAt   time.Time  `json:"updated_at"`
+	ID          uuid.UUID `json:"id"`
+	UserID      uuid.UUID `json:"user_id"`
+	Name        string    `json:"name"`
+	Description string    `json:"description"`
+	IsPublic    bool      `json:"is_public"`
+	PublicSlug  *string   `json:"public_slug,omitempty"`
+	CreatedAt   time.Time `json:"created_at"`
+	UpdatedAt   time.Time `json:"updated_at"`
 }
 
 // ProjectResponse is the public project data returned to clients

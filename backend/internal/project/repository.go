@@ -200,17 +200,17 @@ func (r *Repository) Delete(ctx context.Context, id uuid.UUID) error {
 func (r *Repository) GenerateUniqueSlug(ctx context.Context, baseName string) (string, error) {
 	// Create a slug from the base name
 	slug := generateSlug(baseName)
-	
+
 	// Check if it exists
 	exists, err := r.slugExists(ctx, slug)
 	if err != nil {
 		return "", err
 	}
-	
+
 	if !exists {
 		return slug, nil
 	}
-	
+
 	// Add random suffix if exists
 	for i := 0; i < 10; i++ {
 		newSlug := fmt.Sprintf("%s-%s", slug, uuid.New().String()[:8])
@@ -222,7 +222,7 @@ func (r *Repository) GenerateUniqueSlug(ctx context.Context, baseName string) (s
 			return newSlug, nil
 		}
 	}
-	
+
 	return "", fmt.Errorf("failed to generate unique slug")
 }
 

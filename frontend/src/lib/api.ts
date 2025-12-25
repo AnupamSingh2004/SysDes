@@ -77,31 +77,40 @@ class ApiClient {
   // ==================== Projects ====================
   
   async getProjects() {
-    return this.request<{ projects: Project[] }>('/projects');
+    // Backend returns { projects: [...], total: number }
+    return this.request<{ projects: Project[]; total: number }>('/projects');
   }
 
   async getProject(id: string) {
-    return this.request<{ project: Project }>(`/projects/${id}`);
+    // Backend returns the project directly
+    return this.request<Project>(`/projects/${id}`);
   }
 
   async createProject(data: { name: string; description?: string }) {
-    return this.request<{ project: Project }>('/projects', {
+    // Backend returns the project directly
+    const project = await this.request<Project>('/projects', {
       method: 'POST',
       body: JSON.stringify(data),
     });
+    return { project };
   }
 
   async updateProject(id: string, data: Partial<Project>) {
-    return this.request<{ project: Project }>(`/projects/${id}`, {
+    // Backend returns the project directly
+    const project = await this.request<Project>(`/projects/${id}`, {
       method: 'PUT',
       body: JSON.stringify(data),
     });
+    return { project };
   }
 
   async deleteProject(id: string) {
-    return this.request<{ success: boolean }>(`/projects/${id}`, {
+    // Backend returns 204 No Content
+    await fetch(`${this.baseUrl}/projects/${id}`, {
       method: 'DELETE',
+      credentials: 'include',
     });
+    return { success: true };
   }
 
   // Design versions

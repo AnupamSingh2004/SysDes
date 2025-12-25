@@ -11,6 +11,7 @@ import (
 	"github.com/gofiber/fiber/v2/middleware/recover"
 
 	"github.com/AnupamSingh2004/SysDes/backend/internal/auth"
+	"github.com/AnupamSingh2004/SysDes/backend/internal/project"
 	"github.com/AnupamSingh2004/SysDes/backend/internal/shared/config"
 	"github.com/AnupamSingh2004/SysDes/backend/internal/shared/database"
 	"github.com/AnupamSingh2004/SysDes/backend/internal/shared/logger"
@@ -38,6 +39,11 @@ func main() {
 	authHandler := auth.NewHandler(authService, cfg)
 	authMiddleware := auth.NewMiddleware(authService)
 
+	// Initialize project domain
+	projectRepo := project.NewRepository(db)
+	projectService := project.NewService(projectRepo)
+	projectHandler := project.NewHandler(projectService)
+
 	// Create Fiber app
 	app := fiber.New(fiber.Config{
 		AppName:      "SysDes API",
@@ -57,7 +63,7 @@ func main() {
 	}))
 
 	// Setup routes
-	setupRoutes(app, cfg, authHandler, authMiddleware)
+	setupRoutes(app, cfg, authHandler, authMiddleware, projectHandler)
 
 	// Graceful shutdown
 	go func() {
@@ -76,7 +82,7 @@ func main() {
 	}
 }
 
-func setupRoutes(app *fiber.App, cfg *config.Config, authHandler *auth.Handler, authMiddleware *auth.Middleware) {
+func setupRoutes(app *fiber.App, cfg *config.Config, authHandler *auth.Handler, authMiddleware *auth.Middleware, projectHandler *project.Handler) {
 	// API v1
 	api := app.Group("/api/v1")
 
@@ -111,10 +117,8 @@ func setupRoutes(app *fiber.App, cfg *config.Config, authHandler *auth.Handler, 
 	// Auth routes
 	authHandler.RegisterRoutes(api, authMiddleware.RequireAuth)
 
-	// TODO: Add more routes as we build each domain
-	// - Project routes
-	// - Whiteboard routes
-	// - AI routes
+	// Project routes
+	projectHandler.RegisterRoutes(api, authMiddleware.RequireAuth)
 }
 
 // Custom error handler
