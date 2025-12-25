@@ -1,0 +1,56 @@
+# ============================================
+# Go Backend .gitignore
+# ============================================
+
+# ==================== Environment & Secrets ====================
+# CRITICAL: Never commit these!
+.env
+.env.local
+.env.*
+!.env.example
+
+# ==================== Go ====================
+# Binaries
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+bin/
+sysdes-api
+
+# Test binary
+*.test
+
+# Output of go coverage
+*.out
+coverage.html
+
+# Go workspace file
+go.work
+go.work.sum
+
+# Dependency directories
+vendor/
+
+# ==================== Build ====================
+# Build output
+build/
+dist/
+
+# Air (live reload)
+tmp/
+
+# ==================== IDE ====================
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# ==================== Logs ====================
+logs/
+*.log
+
+# ==================== OS ====================
+.DS_Store
+Thumbs.db

@@ -14,6 +14,7 @@ CREATE TABLE users (
     name VARCHAR(255),
     avatar_url TEXT,
     github_id VARCHAR(100) UNIQUE,
+    google_id VARCHAR(100) UNIQUE,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );

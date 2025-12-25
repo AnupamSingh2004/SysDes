@@ -10,6 +10,7 @@ import (
 	fiberlogger "github.com/gofiber/fiber/v2/middleware/logger"
 	"github.com/gofiber/fiber/v2/middleware/recover"
 
+	"github.com/AnupamSingh2004/SysDes/backend/internal/auth"
 	"github.com/AnupamSingh2004/SysDes/backend/internal/shared/config"
 	"github.com/AnupamSingh2004/SysDes/backend/internal/shared/database"
 	"github.com/AnupamSingh2004/SysDes/backend/internal/shared/logger"
@@ -24,11 +25,18 @@ func main() {
 	logger.Info().Str("env", cfg.Env).Msg("🚀 Starting SysDes Backend")
 
 	// Connect to database
-	_, err := database.Connect(cfg.DatabaseURL)
+	db, err := database.Connect(cfg.DatabaseURL)
 	if err != nil {
 		logger.Fatal().Err(err).Msg("❌ Failed to connect to database")
 	}
 	defer database.Close()
+
+	// Initialize auth domain
+	// Repository -> Service -> Handler pattern (dependency injection)
+	authRepo := auth.NewRepository(db)
+	authService := auth.NewService(authRepo, cfg)
+	authHandler := auth.NewHandler(authService, cfg)
+	authMiddleware := auth.NewMiddleware(authService)
 
 	// Create Fiber app
 	app := fiber.New(fiber.Config{
@@ -49,7 +57,7 @@ func main() {
 	}))
 
 	// Setup routes
-	setupRoutes(app, cfg)
+	setupRoutes(app, cfg, authHandler, authMiddleware)
 
 	// Graceful shutdown
 	go func() {
@@ -68,7 +76,7 @@ func main() {
 	}
 }
 
-func setupRoutes(app *fiber.App, cfg *config.Config) {
+func setupRoutes(app *fiber.App, cfg *config.Config, authHandler *auth.Handler, authMiddleware *auth.Middleware) {
 	// API v1
 	api := app.Group("/api/v1")
 
@@ -100,10 +108,13 @@ func setupRoutes(app *fiber.App, cfg *config.Config) {
 		})
 	})
 
+	// Auth routes
+	authHandler.RegisterRoutes(api, authMiddleware.RequireAuth)
+
 	// TODO: Add more routes as we build each domain
-	// - Auth routes (Step 4)
-	// - Project routes (Step 6)
-	// - etc.
+	// - Project routes
+	// - Whiteboard routes
+	// - AI routes
 }
 
 // Custom error handler
