@@ -19,6 +19,8 @@ class ApiClient {
       ...((options.headers as Record<string, string>) || {}),
     };
 
+    // If token provided explicitly, use Authorization header
+    // Otherwise, rely on HTTP-only cookies (credentials: include)
     if (token) {
       headers['Authorization'] = `Bearer ${token}`;
     }
@@ -26,6 +28,7 @@ class ApiClient {
     const response = await fetch(`${this.baseUrl}${endpoint}`, {
       ...fetchOptions,
       headers,
+      credentials: 'include', // Important: Send cookies with requests
     });
 
     if (!response.ok) {
@@ -41,67 +44,104 @@ class ApiClient {
     return this.request<{ status: string; version: string }>('/health');
   }
 
-  // Auth
-  async getMe(token: string) {
-    return this.request<{ user: { id: string; email: string; name: string; avatar_url: string } }>('/auth/me', { token });
+  // ==================== Auth ====================
+  
+  // Get current user (uses HTTP-only cookie automatically)
+  async getMe() {
+    return this.request<{ user: User }>('/auth/me');
   }
 
-  // Projects
-  async getProjects(token: string) {
-    return this.request<{ projects: Project[] }>('/projects', { token });
+  // Refresh tokens
+  async refreshTokens() {
+    return this.request<{ user: User; tokens: TokenPair }>('/auth/refresh', {
+      method: 'POST',
+    });
   }
 
-  async getProject(id: string, token: string) {
-    return this.request<{ project: Project }>(`/projects/${id}`, { token });
+  // Logout (clears cookies on backend)
+  async logout() {
+    return this.request<{ message: string }>('/auth/logout', {
+      method: 'POST',
+    });
   }
 
-  async createProject(data: { name: string; description?: string }, token: string) {
+  // Get OAuth URLs (for redirecting to providers)
+  getGitHubAuthUrl() {
+    return `${this.baseUrl}/auth/github`;
+  }
+
+  getGoogleAuthUrl() {
+    return `${this.baseUrl}/auth/google`;
+  }
+
+  // ==================== Projects ====================
+  
+  async getProjects() {
+    return this.request<{ projects: Project[] }>('/projects');
+  }
+
+  async getProject(id: string) {
+    return this.request<{ project: Project }>(`/projects/${id}`);
+  }
+
+  async createProject(data: { name: string; description?: string }) {
     return this.request<{ project: Project }>('/projects', {
       method: 'POST',
       body: JSON.stringify(data),
-      token,
     });
   }
 
-  async updateProject(id: string, data: Partial<Project>, token: string) {
+  async updateProject(id: string, data: Partial<Project>) {
     return this.request<{ project: Project }>(`/projects/${id}`, {
       method: 'PUT',
       body: JSON.stringify(data),
-      token,
     });
   }
 
-  async deleteProject(id: string, token: string) {
+  async deleteProject(id: string) {
     return this.request<{ success: boolean }>(`/projects/${id}`, {
       method: 'DELETE',
-      token,
     });
   }
 
   // Design versions
-  async getVersions(projectId: string, token: string) {
-    return this.request<{ versions: DesignVersion[] }>(`/projects/${projectId}/versions`, { token });
+  async getVersions(projectId: string) {
+    return this.request<{ versions: DesignVersion[] }>(`/projects/${projectId}/versions`);
   }
 
-  async createVersion(projectId: string, data: { canvas_data: object; thumbnail?: string }, token: string) {
+  async createVersion(projectId: string, data: { canvas_data: object; thumbnail?: string }) {
     return this.request<{ version: DesignVersion }>(`/projects/${projectId}/versions`, {
       method: 'POST',
       body: JSON.stringify(data),
-      token,
     });
   }
 
   // AI Analysis
-  async analyzeDesign(projectId: string, canvasData: object, token: string) {
+  async analyzeDesign(projectId: string, canvasData: object) {
     return this.request<{ suggestions: Suggestion[] }>(`/ai/analyze`, {
       method: 'POST',
       body: JSON.stringify({ project_id: projectId, canvas_data: canvasData }),
-      token,
     });
   }
 }
 
-// Types
+// ==================== Types ====================
+
+export interface User {
+  id: string;
+  email: string;
+  name: string;
+  avatar_url: string;
+  created_at: string;
+}
+
+export interface TokenPair {
+  access_token: string;
+  refresh_token: string;
+  expires_in: number;
+  token_type: string;
+}
+
 export interface Project {
   id: string;
   name: string;

@@ -36,6 +36,7 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { useAuthContext } from "@/providers/auth-provider";
 
 // Mock data for projects
 const mockProjects = [
@@ -73,6 +74,7 @@ export default function DashboardPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [newProjectName, setNewProjectName] = useState("");
+  const { user, logout } = useAuthContext();
 
   const filteredProjects = mockProjects.filter(project =>
     project.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -156,34 +158,39 @@ export default function DashboardPage() {
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" size="icon" className="rounded-full">
                     <Avatar className="w-8 h-8">
-                      <AvatarImage src="https://github.com/shadcn.png" />
+                      <AvatarImage src={user?.avatar_url} />
                       <AvatarFallback className="bg-purple-500/20 text-purple-400">
-                        U
+                        {user?.name?.[0]?.toUpperCase() || "U"}
                       </AvatarFallback>
                     </Avatar>
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-56 bg-[#111111] border-white/10 text-white">
                   <div className="px-2 py-1.5">
-                    <p className="text-sm font-medium">Demo User</p>
-                    <p className="text-xs text-gray-400">demo@sysdes.app</p>
+                    <p className="text-sm font-medium">{user?.name || "User"}</p>
+                    <p className="text-xs text-gray-400">{user?.email}</p>
                   </div>
                   <DropdownMenuSeparator className="bg-white/10" />
-                  <DropdownMenuItem className="text-gray-300 focus:text-white focus:bg-white/5">
-                    <User className="w-4 h-4 mr-2" />
-                    Profile
-                  </DropdownMenuItem>
-                  <DropdownMenuItem className="text-gray-300 focus:text-white focus:bg-white/5">
-                    <Settings className="w-4 h-4 mr-2" />
-                    Settings
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator className="bg-white/10" />
-                  <Link href="/">
-                    <DropdownMenuItem className="text-red-400 focus:text-red-400 focus:bg-red-500/10">
-                      <LogOut className="w-4 h-4 mr-2" />
-                      Sign out
+                  <Link href="/settings">
+                    <DropdownMenuItem className="text-gray-300 focus:text-white focus:bg-white/5 cursor-pointer">
+                      <User className="w-4 h-4 mr-2" />
+                      Profile
                     </DropdownMenuItem>
                   </Link>
+                  <Link href="/settings">
+                    <DropdownMenuItem className="text-gray-300 focus:text-white focus:bg-white/5 cursor-pointer">
+                      <Settings className="w-4 h-4 mr-2" />
+                      Settings
+                    </DropdownMenuItem>
+                  </Link>
+                  <DropdownMenuSeparator className="bg-white/10" />
+                  <DropdownMenuItem 
+                    onClick={() => logout()}
+                    className="text-red-400 focus:text-red-400 focus:bg-red-500/10 cursor-pointer"
+                  >
+                    <LogOut className="w-4 h-4 mr-2" />
+                    Sign out
+                  </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
             </div>

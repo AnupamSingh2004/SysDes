@@ -8,14 +8,14 @@ import (
 
 // User represents a user in the system
 type User struct {
-	ID        uuid.UUID  `json:"id"`
-	Email     string     `json:"email"`
-	Name      string     `json:"name"`
-	AvatarURL string     `json:"avatar_url"`
-	GitHubID  *string    `json:"github_id,omitempty"`
-	GoogleID  *string    `json:"google_id,omitempty"`
-	CreatedAt time.Time  `json:"created_at"`
-	UpdatedAt time.Time  `json:"updated_at"`
+	ID        uuid.UUID `json:"id"`
+	Email     string    `json:"email"`
+	Name      string    `json:"name"`
+	AvatarURL string    `json:"avatar_url"`
+	GitHubID  *string   `json:"github_id,omitempty"`
+	GoogleID  *string   `json:"google_id,omitempty"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
 }
 
 // UserResponse is the public user data returned to clients

@@ -1,21 +1,24 @@
 "use client";
 
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { Github, Chrome, Layers, ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
+import { useAuthContext } from "@/providers/auth-provider";
 
 export default function LoginPage() {
-  const handleGitHubLogin = () => {
-    // TODO: Implement GitHub OAuth
-    window.location.href = "http://localhost:4000/api/v1/auth/github";
-  };
+  const router = useRouter();
+  const { isAuthenticated, isLoading, loginWithGitHub, loginWithGoogle } = useAuthContext();
 
-  const handleGoogleLogin = () => {
-    // TODO: Implement Google OAuth
-    window.location.href = "http://localhost:4000/api/v1/auth/google";
-  };
+  // Redirect if already logged in
+  useEffect(() => {
+    if (!isLoading && isAuthenticated) {
+      router.push("/dashboard");
+    }
+  }, [isAuthenticated, isLoading, router]);
 
   return (
     <div className="min-h-screen bg-[#0a0a0a] text-white flex">
@@ -41,8 +44,8 @@ export default function LoginPage() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.2 }}
           >
-            `SysDes transformed how I approach system design. 
-            What used to take hours now takes minutes.`
+            &quot;SysDes transformed how I approach system design. 
+            What used to take hours now takes minutes.&quot;
           </motion.blockquote>
           <motion.div
             initial={{ opacity: 0 }}
@@ -95,7 +98,7 @@ export default function LoginPage() {
           {/* OAuth Buttons */}
           <div className="space-y-3">
             <Button 
-              onClick={handleGitHubLogin}
+              onClick={loginWithGitHub}
               className="w-full h-12 bg-white text-black hover:bg-gray-200 text-base font-medium"
             >
               <Github className="w-5 h-5 mr-3" />
@@ -103,7 +106,7 @@ export default function LoginPage() {
             </Button>
 
             <Button 
-              onClick={handleGoogleLogin}
+              onClick={loginWithGoogle}
               variant="outline"
               className="w-full h-12 border-white/10 hover:bg-white/5 text-base font-medium"
             >

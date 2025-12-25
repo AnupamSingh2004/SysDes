@@ -31,6 +31,7 @@ import {
 } from "@/components/ui/dialog";
 import { Logo } from "@/components/shared";
 import { AnimatedBackground } from "@/components/shared";
+import { useAuthContext } from "@/providers/auth-provider";
 
 type SettingsTab = "profile" | "appearance" | "notifications" | "security";
 
@@ -45,6 +46,7 @@ export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState<SettingsTab>("profile");
   const [theme, setTheme] = useState<"dark" | "light" | "system">("dark");
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const { user } = useAuthContext();
 
   return (
     <div className="min-h-screen bg-[#0a0a0a] text-white">
@@ -98,7 +100,7 @@ export default function SettingsPage() {
               transition={{ duration: 0.2 }}
             >
               {activeTab === "profile" && (
-                <ProfileSettings />
+                <ProfileSettings user={user} />
               )}
               {activeTab === "appearance" && (
                 <AppearanceSettings theme={theme} setTheme={setTheme} />
@@ -120,7 +122,7 @@ export default function SettingsPage() {
   );
 }
 
-function ProfileSettings() {
+function ProfileSettings({ user }: { user: { name: string; email: string; avatar_url: string } | null }) {
   return (
     <div className="space-y-8">
       <div>
@@ -133,9 +135,9 @@ function ProfileSettings() {
       {/* Avatar section */}
       <div className="flex items-center gap-6">
         <Avatar className="w-20 h-20">
-          <AvatarImage src="https://github.com/shadcn.png" />
+          <AvatarImage src={user?.avatar_url} />
           <AvatarFallback className="bg-purple-500/20 text-purple-400 text-xl">
-            U
+            {user?.name?.[0]?.toUpperCase() || "U"}
           </AvatarFallback>
         </Avatar>
         <div>
@@ -152,7 +154,7 @@ function ProfileSettings() {
           <Label htmlFor="name">Display name</Label>
           <Input
             id="name"
-            defaultValue="Demo User"
+            defaultValue={user?.name || ""}
             className="bg-white/5 border-white/10 focus:border-purple-500"
           />
         </div>
@@ -162,7 +164,7 @@ function ProfileSettings() {
           <Input
             id="email"
             type="email"
-            defaultValue="demo@sysdes.app"
+            defaultValue={user?.email || ""}
             disabled
             className="bg-white/5 border-white/10 text-gray-500"
           />

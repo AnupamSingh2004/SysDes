@@ -1,34 +1,50 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Loader2, Layers } from "lucide-react";
+import { Loader2, Layers, CheckCircle2, XCircle } from "lucide-react";
+import { useAuthContext } from "@/providers/auth-provider";
 
-export default function AuthCallbackPage() {
+function AuthCallbackContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { refreshUser } = useAuthContext();
 
   useEffect(() => {
-    const token = searchParams.get("token");
-    const error = searchParams.get("error");
+    const handleCallback = async () => {
+      const error = searchParams.get("error");
+      const provider = searchParams.get("provider");
 
-    if (error) {
-      // Handle error - redirect to login with error message
-      router.push(`/login?error=${encodeURIComponent(error)}`);
-      return;
-    }
+      if (error) {
+        // Handle error - redirect to login with error message
+        setTimeout(() => {
+          router.push(`/login?error=${encodeURIComponent(error)}`);
+        }, 1500);
+        return;
+      }
 
-    if (token) {
-      // Store the token
-      localStorage.setItem("auth_token", token);
-      
-      // Redirect to dashboard
-      router.push("/dashboard");
-    } else {
-      // No token, redirect to login
-      router.push("/login");
-    }
-  }, [router, searchParams]);
+      // OAuth was successful - cookies are already set by backend
+      // Now fetch the user data to update the auth context
+      if (provider) {
+        try {
+          await refreshUser();
+          // Small delay to show success state
+          setTimeout(() => {
+            router.push("/dashboard");
+          }, 1000);
+        } catch {
+          router.push("/login?error=auth_failed");
+        }
+      } else {
+        router.push("/login");
+      }
+    };
+
+    handleCallback();
+  }, [router, searchParams, refreshUser]);
+
+  const error = searchParams.get("error");
+  const provider = searchParams.get("provider");
 
   return (
     <div className="min-h-screen bg-[#0a0a0a] text-white flex items-center justify-center">
@@ -43,11 +59,38 @@ export default function AuthCallbackPage() {
           <Layers className="w-8 h-8 text-white" />
         </div>
         
-        <Loader2 className="w-8 h-8 animate-spin text-purple-400 mx-auto mb-4" />
-        
-        <h1 className="text-xl font-semibold mb-2">Signing you in...</h1>
-        <p className="text-gray-400">Please wait while we complete authentication</p>
+        {error ? (
+          <>
+            <XCircle className="w-10 h-10 text-red-400 mx-auto mb-4" />
+            <h1 className="text-xl font-semibold mb-2">Authentication Failed</h1>
+            <p className="text-gray-400">Redirecting you back to login...</p>
+          </>
+        ) : provider ? (
+          <>
+            <CheckCircle2 className="w-10 h-10 text-green-400 mx-auto mb-4 animate-pulse" />
+            <h1 className="text-xl font-semibold mb-2">Welcome to SysDes!</h1>
+            <p className="text-gray-400">Redirecting to your dashboard...</p>
+          </>
+        ) : (
+          <>
+            <Loader2 className="w-8 h-8 animate-spin text-purple-400 mx-auto mb-4" />
+            <h1 className="text-xl font-semibold mb-2">Signing you in...</h1>
+            <p className="text-gray-400">Please wait while we complete authentication</p>
+          </>
+        )}
       </div>
     </div>
+  );
+}
+
+export default function AuthCallbackPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-[#0a0a0a] text-white flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-purple-400" />
+      </div>
+    }>
+      <AuthCallbackContent />
+    </Suspense>
   );
 }

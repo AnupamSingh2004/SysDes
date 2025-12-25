@@ -37,7 +37,7 @@ func generateState() string {
 // GET /api/v1/auth/github
 func (h *Handler) GitHubLogin(c *fiber.Ctx) error {
 	state := generateState()
-	
+
 	// Store state in cookie for CSRF protection
 	c.Cookie(&fiber.Cookie{
 		Name:     "oauth_state",
@@ -110,7 +110,7 @@ func (h *Handler) GitHubCallback(c *fiber.Ctx) error {
 // GET /api/v1/auth/google
 func (h *Handler) GoogleLogin(c *fiber.Ctx) error {
 	state := generateState()
-	
+
 	// Store state in cookie for CSRF protection
 	c.Cookie(&fiber.Cookie{
 		Name:     "oauth_state",
@@ -209,7 +209,7 @@ func (h *Handler) GetMe(c *fiber.Ctx) error {
 func (h *Handler) RefreshTokens(c *fiber.Ctx) error {
 	// Get refresh token from cookie or body
 	refreshToken := c.Cookies("refresh_token")
-	
+
 	if refreshToken == "" {
 		var body struct {
 			RefreshToken string `json:"refresh_token"`

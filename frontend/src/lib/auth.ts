@@ -1,32 +1,16 @@
 // Auth utilities for managing authentication state
+// NOTE: Tokens are stored in HTTP-only cookies for security
+// This file handles the user data caching in localStorage
 
-export interface User {
-  id: string;
-  email: string;
-  name: string;
-  avatar_url?: string;
-  provider: 'github' | 'google';
-}
+import { api, User } from './api';
 
-const TOKEN_KEY = 'auth_token';
 const USER_KEY = 'auth_user';
 
-export function getToken(): string | null {
-  if (typeof window === 'undefined') return null;
-  return localStorage.getItem(TOKEN_KEY);
-}
+// ==================== User Storage ====================
+// We cache user data in localStorage for quick access
+// but the actual auth is done via HTTP-only cookies
 
-export function setToken(token: string): void {
-  if (typeof window === 'undefined') return;
-  localStorage.setItem(TOKEN_KEY, token);
-}
-
-export function removeToken(): void {
-  if (typeof window === 'undefined') return;
-  localStorage.removeItem(TOKEN_KEY);
-}
-
-export function getUser(): User | null {
+export function getCachedUser(): User | null {
   if (typeof window === 'undefined') return null;
   const userStr = localStorage.getItem(USER_KEY);
   if (!userStr) return null;
@@ -37,30 +21,58 @@ export function getUser(): User | null {
   }
 }
 
-export function setUser(user: User): void {
+export function setCachedUser(user: User): void {
   if (typeof window === 'undefined') return;
   localStorage.setItem(USER_KEY, JSON.stringify(user));
 }
 
-export function removeUser(): void {
+export function removeCachedUser(): void {
   if (typeof window === 'undefined') return;
   localStorage.removeItem(USER_KEY);
 }
 
-export function isAuthenticated(): boolean {
-  return !!getToken();
+// ==================== Auth Check ====================
+// Check if user is logged in by looking for the non-httponly cookie
+// that the backend sets alongside the secure tokens
+
+export function isLoggedIn(): boolean {
+  if (typeof window === 'undefined') return false;
+  return document.cookie.includes('logged_in=true');
 }
 
-export function logout(): void {
-  removeToken();
-  removeUser();
+// ==================== OAuth Redirects ====================
+
+export function loginWithGitHub(): void {
+  window.location.href = api.getGitHubAuthUrl();
+}
+
+export function loginWithGoogle(): void {
+  window.location.href = api.getGoogleAuthUrl();
+}
+
+// ==================== Logout ====================
+
+export async function logout(): Promise<void> {
+  try {
+    await api.logout();
+  } catch (error) {
+    console.error('Logout error:', error);
+  }
+  removeCachedUser();
   window.location.href = '/';
 }
 
-export function getAuthHeaders(): Record<string, string> {
-  const token = getToken();
-  if (!token) return {};
-  return {
-    'Authorization': `Bearer ${token}`,
-  };
+// ==================== Fetch Current User ====================
+// This makes an API call to verify auth and get fresh user data
+
+export async function fetchCurrentUser(): Promise<User | null> {
+  try {
+    const response = await api.getMe();
+    setCachedUser(response.user);
+    return response.user;
+  } catch {
+    removeCachedUser();
+    return null;
+  }
 }
+
