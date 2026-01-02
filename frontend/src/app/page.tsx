@@ -102,10 +102,7 @@ export default function LandingPage() {
           >
             {/* Badge */}
             <motion.div variants={fadeInUp}>
-              <Badge variant="outline" className="mb-6 border-purple-500/30 text-purple-400 bg-purple-500/10">
-                <Sparkles className="w-3 h-3 mr-1" />
-                AI-Powered System Design
-              </Badge>
+              
             </motion.div>
 
             {/* Headline */}

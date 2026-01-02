@@ -57,7 +57,6 @@ export default function LoginPage() {
         </div>
 
         <p className="text-sm text-gray-600">
-          © 2024 SysDes. All rights reserved.
         </p>
       </div>
 

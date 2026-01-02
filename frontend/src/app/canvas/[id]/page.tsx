@@ -1,397 +1,231 @@
+/**
+ * Canvas Page - Project whiteboard with custom canvas
+ */
+
 "use client";
 
-import { useState, use } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import {
-  Layers,
-  ChevronLeft,
-  Download,
-  Share2,
-  Sparkles,
-  Undo,
-  Redo,
-  ZoomIn,
-  ZoomOut,
-  MousePointer2,
-  Hand,
-  Square,
-  Circle,
-  ArrowRight,
-  Type,
-  Database,
-  Server,
-  Cloud,
-  MessageSquare,
-  X,
-  Check,
-  Loader2,
-  History,
-  PanelRightOpen,
-  PanelRightClose,
-} from "lucide-react";
+import { useParams, useRouter } from "next/navigation";
+import { useCallback, useEffect, useState } from "react";
+import { ArrowLeft, Save, Share2, Settings, Sparkles, X } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
+import { CustomCanvas, CanvasToolbar, StylePanel, useCanvasStore } from "@/components/canvas";
+import { Logo } from "@/components/shared";
+import { api, Project, Suggestion } from "@/lib/api";
+import { useAuthContext } from "@/providers/auth-provider";
 
-// Mock suggestions from AI
-const mockSuggestions = [
+// Mock suggestions
+const mockSuggestions: Suggestion[] = [
   {
     id: "1",
     type: "scalability",
     title: "Add Load Balancer",
-    description: "Consider adding a load balancer before your API servers to distribute traffic evenly.",
+    description: "Consider adding a load balancer before your API servers.",
     priority: "high",
   },
   {
     id: "2",
     type: "security",
     title: "Implement Rate Limiting",
-    description: "Add rate limiting to prevent abuse and protect your services from DDoS attacks.",
+    description: "Add rate limiting to prevent abuse.",
     priority: "medium",
   },
-  {
-    id: "3",
-    type: "performance",
-    title: "Add Caching Layer",
-    description: "Introduce Redis caching between API and database to reduce latency.",
-    priority: "high",
-  },
 ];
 
-// Tools available in the toolbar
-const tools = [
-  { id: "select", icon: MousePointer2, label: "Select" },
-  { id: "pan", icon: Hand, label: "Pan" },
-  { id: "rectangle", icon: Square, label: "Rectangle" },
-  { id: "circle", icon: Circle, label: "Circle" },
-  { id: "arrow", icon: ArrowRight, label: "Arrow" },
-  { id: "text", icon: Type, label: "Text" },
-];
+export default function CanvasPage() {
+  const params = useParams();
+  const router = useRouter();
+  const { user, isLoading: authLoading } = useAuthContext();
+  const [project, setProject] = useState<Project | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [showAISidebar, setShowAISidebar] = useState(false);
+  const [showStylePanel, setShowStylePanel] = useState(true);
+  const [suggestions] = useState<Suggestion[]>(mockSuggestions);
 
-// Component shapes
-const shapes = [
-  { id: "server", icon: Server, label: "Server" },
-  { id: "database", icon: Database, label: "Database" },
-  { id: "cloud", icon: Cloud, label: "Cloud" },
-  { id: "api", icon: Layers, label: "API" },
-];
+  const projectId = params.id as string;
 
-export default function CanvasPage({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = use(params);
-  const [projectName, setProjectName] = useState(id === "new" ? "Untitled Project" : "E-commerce Platform");
-  const [isEditingName, setIsEditingName] = useState(false);
-  const [selectedTool, setSelectedTool] = useState("select");
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
-  const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [zoom, setZoom] = useState(100);
+  // Load project
+  useEffect(() => {
+    async function loadProject() {
+      if (!projectId) return;
+      
+      // Wait for auth to finish loading
+      if (authLoading) return;
 
-  const handleAnalyze = async () => {
-    setIsAnalyzing(true);
-    // Simulate AI analysis
-    await new Promise(resolve => setTimeout(resolve, 2000));
-    setIsAnalyzing(false);
-  };
+      // If not authenticated, redirect to login
+      if (!user) {
+        router.push("/login");
+        return;
+      }
+
+      try {
+        const data = await api.getProject(projectId);
+        setProject(data);
+        setError(null);
+      } catch (err) {
+        console.error("Failed to load project:", err);
+        setError("Failed to load project. It may not exist or you don't have access.");
+        // Don't redirect immediately - show error instead
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    loadProject();
+  }, [projectId, user, authLoading, router]);
+
+  // Handle save
+  const handleSave = useCallback(async () => {
+    if (!project) return;
+
+    try {
+      const { shapes, scrollX, scrollY, zoom } = useCanvasStore.getState().canvas;
+      
+      // Save canvas data to project
+      // TODO: Add data field to Project type when backend supports it
+      console.log("Saving canvas state:", { shapes: shapes.length, viewport: { scrollX, scrollY, zoom } });
+      await api.updateProject(project.id, {
+        name: project.name, // Keep existing name
+      });
+      
+      console.log("Project saved");
+    } catch (error) {
+      console.error("Failed to save:", error);
+    }
+  }, [project]);
+
+  // Keyboard shortcut for save
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === "s") {
+        e.preventDefault();
+        handleSave();
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [handleSave]);
+
+  if (loading || authLoading) {
+    return (
+      <div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500"></div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-red-400 mb-4">{error}</p>
+          <Link href="/dashboard">
+            <Button variant="outline">Back to Dashboard</Button>
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="h-screen bg-[#0a0a0a] text-white flex flex-col overflow-hidden">
-      {/* Top toolbar */}
-      <header className="h-14 border-b border-white/5 bg-[#0a0a0a]/80 backdrop-blur-xl flex items-center justify-between px-4 shrink-0">
-        {/* Left section */}
-        <div className="flex items-center gap-3">
-          <Link href="/dashboard">
-            <Button variant="ghost" size="icon" className="text-gray-400 hover:text-white">
-              <ChevronLeft className="w-5 h-5" />
-            </Button>
+    <div className="h-screen w-screen overflow-hidden bg-[#0a0a0a] flex flex-col">
+      {/* Header */}
+      <header className="h-14 border-b border-zinc-800 bg-zinc-900/80 backdrop-blur flex items-center justify-between px-4 shrink-0">
+        <div className="flex items-center gap-4">
+          <Link href="/dashboard" className="text-zinc-400 hover:text-white transition-colors">
+            <ArrowLeft size={20} />
           </Link>
-          
-          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center">
-            <Layers className="w-4 h-4 text-white" />
-          </div>
-
-          {isEditingName ? (
-            <Input
-              value={projectName}
-              onChange={(e) => setProjectName(e.target.value)}
-              onBlur={() => setIsEditingName(false)}
-              onKeyDown={(e) => e.key === "Enter" && setIsEditingName(false)}
-              className="w-64 h-8 bg-white/5 border-white/10 focus:border-purple-500"
-              autoFocus
-            />
-          ) : (
-            <button 
-              onClick={() => setIsEditingName(true)}
-              className="text-sm font-medium hover:text-purple-400 transition-colors"
-            >
-              {projectName}
-            </button>
-          )}
-
-          <Badge variant="outline" className="text-xs border-white/10 text-gray-500">
-            Saved
-          </Badge>
+          <Logo size="sm" />
+          <div className="h-6 w-px bg-zinc-700" />
+          <span className="text-white font-medium">{project?.name || "Untitled"}</span>
         </div>
 
-        {/* Center section - Tools */}
-        <div className="flex items-center gap-1 bg-white/5 rounded-lg p-1">
-          {tools.map((tool) => (
-            <Button
-              key={tool.id}
-              variant="ghost"
-              size="icon"
-              className={`h-8 w-8 ${
-                selectedTool === tool.id 
-                  ? "bg-purple-500/20 text-purple-400" 
-                  : "text-gray-400 hover:text-white"
-              }`}
-              onClick={() => setSelectedTool(tool.id)}
-              title={tool.label}
-            >
-              <tool.icon className="w-4 h-4" />
-            </Button>
-          ))}
-          
-          <Separator orientation="vertical" className="h-6 bg-white/10 mx-1" />
-          
-          {shapes.map((shape) => (
-            <Button
-              key={shape.id}
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8 text-gray-400 hover:text-white"
-              title={shape.label}
-            >
-              <shape.icon className="w-4 h-4" />
-            </Button>
-          ))}
-        </div>
-
-        {/* Right section */}
         <div className="flex items-center gap-2">
-          <div className="flex items-center gap-1 mr-2">
-            <Button 
-              variant="ghost" 
-              size="icon" 
-              className="h-8 w-8 text-gray-400 hover:text-white"
-              onClick={() => setZoom(Math.max(25, zoom - 25))}
-            >
-              <ZoomOut className="w-4 h-4" />
-            </Button>
-            <span className="text-xs text-gray-400 w-12 text-center">{zoom}%</span>
-            <Button 
-              variant="ghost" 
-              size="icon" 
-              className="h-8 w-8 text-gray-400 hover:text-white"
-              onClick={() => setZoom(Math.min(200, zoom + 25))}
-            >
-              <ZoomIn className="w-4 h-4" />
-            </Button>
-          </div>
-
-          <Separator orientation="vertical" className="h-6 bg-white/10" />
-
-          <Button variant="ghost" size="icon" className="h-8 w-8 text-gray-400 hover:text-white">
-            <Undo className="w-4 h-4" />
-          </Button>
-          <Button variant="ghost" size="icon" className="h-8 w-8 text-gray-400 hover:text-white">
-            <Redo className="w-4 h-4" />
-          </Button>
-
-          <Separator orientation="vertical" className="h-6 bg-white/10" />
-
-          <Button variant="ghost" size="icon" className="h-8 w-8 text-gray-400 hover:text-white">
-            <History className="w-4 h-4" />
-          </Button>
-
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" className="h-8 w-8 text-gray-400 hover:text-white">
-                <Download className="w-4 h-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="bg-[#111111] border-white/10 text-white">
-              <DropdownMenuItem className="text-gray-300 focus:text-white focus:bg-white/5">
-                Export as PNG
-              </DropdownMenuItem>
-              <DropdownMenuItem className="text-gray-300 focus:text-white focus:bg-white/5">
-                Export as SVG
-              </DropdownMenuItem>
-              <DropdownMenuItem className="text-gray-300 focus:text-white focus:bg-white/5">
-                Export as PDF
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-
-          <Button variant="ghost" size="icon" className="h-8 w-8 text-gray-400 hover:text-white">
-            <Share2 className="w-4 h-4" />
-          </Button>
-
-          <Button 
-            onClick={handleAnalyze}
-            disabled={isAnalyzing}
-            className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white h-8"
+          <Button
+            variant="ghost"
+            size="sm"
+            className="text-zinc-400 hover:text-white"
+            onClick={() => setShowAISidebar(!showAISidebar)}
           >
-            {isAnalyzing ? (
-              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-            ) : (
-              <Sparkles className="w-4 h-4 mr-2" />
-            )}
-            {isAnalyzing ? "Analyzing..." : "Analyze"}
+            <Sparkles size={18} className="mr-2" />
+            AI Assistant
           </Button>
-
-          <Button 
-            variant="ghost" 
-            size="icon" 
-            className="h-8 w-8 text-gray-400 hover:text-white"
-            onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+          <Button
+            variant="ghost"
+            size="sm"
+            className="text-zinc-400 hover:text-white"
+            onClick={() => setShowStylePanel(!showStylePanel)}
           >
-            {isSidebarOpen ? (
-              <PanelRightClose className="w-4 h-4" />
-            ) : (
-              <PanelRightOpen className="w-4 h-4" />
-            )}
+            <Settings size={18} className="mr-2" />
+            Style
+          </Button>
+          <div className="h-6 w-px bg-zinc-700" />
+          <Button variant="ghost" size="sm" className="text-zinc-400 hover:text-white">
+            <Share2 size={18} className="mr-2" />
+            Share
+          </Button>
+          <Button
+            size="sm"
+            className="bg-blue-600 hover:bg-blue-700 text-white"
+            onClick={handleSave}
+          >
+            <Save size={18} className="mr-2" />
+            Save
           </Button>
         </div>
       </header>
 
-      {/* Main content */}
-      <div className="flex-1 flex overflow-hidden">
-        {/* Canvas area */}
-        <div className="flex-1 relative overflow-hidden">
-          {/* Canvas background with grid */}
-          <div 
-            className="absolute inset-0"
-            style={{
-              backgroundImage: `
-                radial-gradient(circle at center, rgba(139, 92, 246, 0.03) 0%, transparent 70%),
-                linear-gradient(rgba(255,255,255,0.02) 1px, transparent 1px),
-                linear-gradient(90deg, rgba(255,255,255,0.02) 1px, transparent 1px)
-              `,
-              backgroundSize: "100% 100%, 20px 20px, 20px 20px",
-            }}
-          />
-
-          {/* Empty state / placeholder */}
-          <div className="absolute inset-0 flex items-center justify-center">
-            <div className="text-center">
-              <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-purple-500/20 to-pink-500/20 border border-white/10 flex items-center justify-center mx-auto mb-4">
-                <Layers className="w-10 h-10 text-purple-400/50" />
-              </div>
-              <h3 className="text-lg font-medium mb-2 text-gray-300">Start designing</h3>
-              <p className="text-gray-500 text-sm max-w-xs">
-                Drag shapes from the toolbar or draw freely on the canvas
-              </p>
-            </div>
-          </div>
-
-          {/* Zoom indicator */}
-          <div className="absolute bottom-4 left-4 text-xs text-gray-500 bg-black/50 px-2 py-1 rounded backdrop-blur-sm">
-            {zoom}%
-          </div>
+      {/* Main Content */}
+      <div className="flex-1 flex relative overflow-hidden">
+        {/* Left Toolbar */}
+        <div className="absolute top-4 left-4 z-10">
+          <CanvasToolbar />
         </div>
+
+        {/* Canvas */}
+        <div className="flex-1 relative">
+          <CustomCanvas className="w-full h-full" />
+        </div>
+
+        {/* Right Style Panel */}
+        {showStylePanel && (
+          <div className="absolute top-4 right-4 z-10">
+            <StylePanel />
+          </div>
+        )}
 
         {/* AI Sidebar */}
-        <AnimatePresence>
-          {isSidebarOpen && (
-            <motion.aside
-              initial={{ width: 0, opacity: 0 }}
-              animate={{ width: 360, opacity: 1 }}
-              exit={{ width: 0, opacity: 0 }}
-              transition={{ duration: 0.2 }}
-              className="border-l border-white/5 bg-[#0d0d0d] overflow-hidden flex flex-col"
-            >
-              <div className="p-4 border-b border-white/5">
-                <div className="flex items-center gap-2 mb-1">
-                  <Sparkles className="w-4 h-4 text-purple-400" />
-                  <h2 className="font-semibold">AI Suggestions</h2>
+        {showAISidebar && (
+          <div className="w-80 border-l border-zinc-800 bg-zinc-900/95 backdrop-blur overflow-hidden flex flex-col">
+            <div className="p-4 border-b border-zinc-800 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Sparkles className="w-4 h-4 text-purple-400" />
+                <h2 className="font-semibold text-white">AI Suggestions</h2>
+              </div>
+              <button onClick={() => setShowAISidebar(false)} className="text-zinc-400 hover:text-white">
+                <X size={18} />
+              </button>
+            </div>
+            <div className="flex-1 overflow-y-auto p-4 space-y-3">
+              {suggestions.map((s) => (
+                <div key={s.id} className="p-3 bg-zinc-800/50 rounded-lg border border-zinc-700">
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className={`text-xs px-2 py-0.5 rounded ${
+                      s.priority === "high" ? "bg-red-500/20 text-red-400" : "bg-yellow-500/20 text-yellow-400"
+                    }`}>
+                      {s.priority}
+                    </span>
+                    <span className="text-xs text-zinc-500">{s.type}</span>
+                  </div>
+                  <h3 className="text-sm font-medium text-white mb-1">{s.title}</h3>
+                  <p className="text-xs text-zinc-400">{s.description}</p>
                 </div>
-                <p className="text-xs text-gray-500">
-                  Smart recommendations for your design
-                </p>
-              </div>
-
-              <div className="flex-1 overflow-y-auto p-4 space-y-3">
-                {mockSuggestions.map((suggestion) => (
-                  <SuggestionCard key={suggestion.id} suggestion={suggestion} />
-                ))}
-              </div>
-
-              {/* AI Chat input */}
-              <div className="p-4 border-t border-white/5">
-                <div className="relative">
-                  <Input
-                    placeholder="Ask AI about your design..."
-                    className="pr-10 bg-white/5 border-white/10 focus:border-purple-500"
-                  />
-                  <Button 
-                    size="icon" 
-                    className="absolute right-1 top-1 h-7 w-7 bg-purple-500 hover:bg-purple-600"
-                  >
-                    <MessageSquare className="w-3.5 h-3.5" />
-                  </Button>
-                </div>
-              </div>
-            </motion.aside>
-          )}
-        </AnimatePresence>
-      </div>
-    </div>
-  );
-}
-
-// Suggestion card component
-function SuggestionCard({ suggestion }: { suggestion: typeof mockSuggestions[0] }) {
-  const priorityColors = {
-    high: "text-red-400 bg-red-500/10 border-red-500/20",
-    medium: "text-yellow-400 bg-yellow-500/10 border-yellow-500/20",
-    low: "text-green-400 bg-green-500/10 border-green-500/20",
-  };
-
-  const typeIcons = {
-    scalability: Server,
-    security: Layers,
-    performance: Sparkles,
-  };
-
-  const Icon = typeIcons[suggestion.type as keyof typeof typeIcons] || Sparkles;
-
-  return (
-    <div className="p-3 rounded-lg border border-white/5 bg-white/[0.02] hover:bg-white/[0.04] transition-colors">
-      <div className="flex items-start gap-3">
-        <div className="w-8 h-8 rounded-lg bg-purple-500/20 flex items-center justify-center shrink-0">
-          <Icon className="w-4 h-4 text-purple-400" />
-        </div>
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 mb-1">
-            <h4 className="text-sm font-medium truncate">{suggestion.title}</h4>
-            <Badge 
-              variant="outline" 
-              className={`text-[10px] px-1.5 py-0 ${priorityColors[suggestion.priority as keyof typeof priorityColors]}`}
-            >
-              {suggestion.priority}
-            </Badge>
+              ))}
+            </div>
           </div>
-          <p className="text-xs text-gray-400 leading-relaxed">
-            {suggestion.description}
-          </p>
-          <div className="flex items-center gap-2 mt-2">
-            <Button variant="ghost" size="sm" className="h-7 text-xs text-purple-400 hover:text-purple-300 hover:bg-purple-500/10 px-2">
-              <Check className="w-3 h-3 mr-1" />
-              Apply
-            </Button>
-            <Button variant="ghost" size="sm" className="h-7 text-xs text-gray-400 hover:text-white px-2">
-              <X className="w-3 h-3 mr-1" />
-              Dismiss
-            </Button>
-          </div>
-        </div>
+        )}
       </div>
     </div>
   );
