@@ -14,6 +14,7 @@ import {
   Minus,
   ArrowRight,
   Pencil,
+  Type,
   Undo2,
   Redo2,
   ZoomIn,
@@ -115,6 +116,7 @@ export function CanvasToolbar({ className }: CanvasToolbarProps) {
           <ToolButton tool="line" icon={<Minus size={20} />} label="Line" shortcut="L" />
           <ToolButton tool="arrow" icon={<ArrowRight size={20} />} label="Arrow" shortcut="A" />
           <ToolButton tool="freedraw" icon={<Pencil size={20} />} label="Draw" shortcut="P" />
+          <ToolButton tool="text" icon={<Type size={20} />} label="Text" shortcut="T" />
         </div>
 
         <div className="h-px bg-zinc-800 my-1" />

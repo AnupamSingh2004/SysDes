@@ -52,6 +52,7 @@ export const DEFAULT_INTERACTION_STATE: InteractionState = {
   drawingShape: null,
   hoveredShapeId: null,
   hoveredHandle: null,
+  editingTextId: null,
 };
 
 // ============================================
@@ -68,10 +69,9 @@ export const CANVAS_CONFIG = {
   HANDLE_SIZE: 8,
   ROTATION_HANDLE_OFFSET: 24,
   
-  // Grid
-  GRID_COLOR: "rgba(255, 255, 255, 0.05)",
-  GRID_BOLD_COLOR: "rgba(255, 255, 255, 0.1)",
-  GRID_BOLD_INTERVAL: 5,
+  // Grid - Dot pattern like Excalidraw
+  GRID_DOT_COLOR: "#3d3d3d",
+  GRID_DOT_SIZE: 1,
   
   // Snapping
   SNAP_THRESHOLD: 8,

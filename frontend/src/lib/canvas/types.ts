@@ -102,6 +102,8 @@ export interface TextShape extends BaseShape {
   fontFamily: string;
   textAlign: "left" | "center" | "right";
   verticalAlign: "top" | "middle" | "bottom";
+  lineHeight: number; // multiplier for line spacing
+  autoResize: boolean; // whether to auto-resize based on content
 }
 
 export interface FreedrawShape extends BaseShape {
@@ -190,7 +192,8 @@ export type InteractionMode =
   | "dragging"
   | "resizing"
   | "rotating"
-  | "panning";
+  | "panning"
+  | "editing-text";
 
 export type ResizeHandle =
   | "nw" | "n" | "ne"
@@ -223,6 +226,9 @@ export interface InteractionState {
   // Hover state
   hoveredShapeId: string | null;
   hoveredHandle: ResizeHandle | null;
+
+  // Text editing
+  editingTextId: string | null;
 }
 
 // ============================================

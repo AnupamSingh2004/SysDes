@@ -14,7 +14,7 @@ interface ShapeRendererProps {
   isHovered?: boolean;
 }
 
-export function ShapeRenderer({ shape, isSelected: _isSelected, isHovered: _isHovered }: ShapeRendererProps) {
+export const ShapeRenderer = React.memo(function ShapeRenderer({ shape, isSelected: _isSelected, isHovered: _isHovered }: ShapeRendererProps) {
   // _isSelected and _isHovered can be used for visual feedback (outline, glow, etc.)
   void _isSelected;
   void _isHovered;
@@ -51,7 +51,7 @@ export function ShapeRenderer({ shape, isSelected: _isSelected, isHovered: _isHo
     default:
       return null;
   }
-}
+});
 
 // ============================================
 // Rectangle Renderer
@@ -333,30 +333,64 @@ interface TextRendererProps {
 
 function TextRenderer({ shape, stroke, opacity }: TextRendererProps) {
   const textAnchor = shape.textAlign === "left" ? "start" : shape.textAlign === "right" ? "end" : "middle";
-  const dominantBaseline = shape.verticalAlign === "top" ? "hanging" : shape.verticalAlign === "bottom" ? "auto" : "middle";
+  
+  // Split text into lines
+  const lines = shape.text.split("\n");
+  const lineHeight = shape.lineHeight || 1.25;
+  const lineSpacing = shape.fontSize * lineHeight;
+  
+  // Calculate starting position based on alignment
+  let baseX = shape.x;
+  if (shape.textAlign === "center") baseX += shape.width / 2;
+  else if (shape.textAlign === "right") baseX += shape.width;
+  
+  // Calculate vertical position
+  const totalTextHeight = lines.length * lineSpacing;
+  let startY = shape.y;
+  
+  if (shape.verticalAlign === "middle") {
+    startY = shape.y + (shape.height - totalTextHeight) / 2 + shape.fontSize * 0.8;
+  } else if (shape.verticalAlign === "bottom") {
+    startY = shape.y + shape.height - totalTextHeight + shape.fontSize * 0.8;
+  } else {
+    startY = shape.y + shape.fontSize * 0.8; // top alignment
+  }
 
-  let x = shape.x;
-  let y = shape.y;
-
-  if (shape.textAlign === "center") x += shape.width / 2;
-  else if (shape.textAlign === "right") x += shape.width;
-
-  if (shape.verticalAlign === "middle") y += shape.height / 2;
-  else if (shape.verticalAlign === "bottom") y += shape.height;
+  // Show placeholder if empty
+  if (!shape.text) {
+    return (
+      <text
+        x={baseX}
+        y={shape.y + shape.height / 2}
+        fill={stroke}
+        fontSize={shape.fontSize}
+        fontFamily={shape.fontFamily}
+        textAnchor={textAnchor}
+        dominantBaseline="middle"
+        opacity={0.3}
+      >
+        Click to edit
+      </text>
+    );
+  }
 
   return (
-    <text
-      x={x}
-      y={y}
-      fill={stroke}
-      fontSize={shape.fontSize}
-      fontFamily={shape.fontFamily}
-      textAnchor={textAnchor}
-      dominantBaseline={dominantBaseline}
-      opacity={opacity}
-    >
-      {shape.text}
-    </text>
+    <g opacity={opacity}>
+      {lines.map((line, index) => (
+        <text
+          key={index}
+          x={baseX}
+          y={startY + index * lineSpacing}
+          fill={stroke}
+          fontSize={shape.fontSize}
+          fontFamily={shape.fontFamily}
+          textAnchor={textAnchor}
+          dominantBaseline="auto"
+        >
+          {line || " "}
+        </text>
+      ))}
+    </g>
   );
 }
 
