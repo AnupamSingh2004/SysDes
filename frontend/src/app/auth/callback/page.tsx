@@ -14,6 +14,7 @@ function AuthCallbackContent() {
     const handleCallback = async () => {
       const error = searchParams.get("error");
       const provider = searchParams.get("provider");
+      const token = searchParams.get("token");
 
       if (error) {
         // Handle error - redirect to login with error message
@@ -21,6 +22,11 @@ function AuthCallbackContent() {
           router.push(`/login?error=${encodeURIComponent(error)}`);
         }, 1500);
         return;
+      }
+
+      // If token is in URL (cross-domain auth), store it in localStorage
+      if (token) {
+        localStorage.setItem("auth_token", token);
       }
 
       // OAuth was successful - cookies are already set by backend

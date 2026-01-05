@@ -1,0 +1,56 @@
+name: Deploy Backend
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'backend/**'
+      - 'docker-compose.backend.yml'
+      - 'nginx/**'
+      - '.github/workflows/deploy-backend.yml'
+
+jobs:
+  deploy:
+    name: Deploy to VPS
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Deploy to VPS
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USERNAME }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          script: |
+            cd ~/SysDes
+            
+            echo "📥 Pulling latest changes..."
+            git pull origin main
+            
+            echo "🔨 Rebuilding and restarting services..."
+            sudo docker compose -f docker-compose.backend.yml down
+            sudo docker compose -f docker-compose.backend.yml up -d --build
+            
+            echo "⏳ Waiting for services to be healthy..."
+            sleep 10
+            
+            echo "📊 Running database migrations..."
+            cat backend/migrations/*.sql | sudo docker compose -f docker-compose.backend.yml exec -T postgres psql -U sysdes -d sysdes || true
+            
+            echo "✅ Checking service status..."
+            sudo docker compose -f docker-compose.backend.yml ps
+            
+            echo "📋 Recent logs..."
+            sudo docker compose -f docker-compose.backend.yml logs --tail=20 backend
+            
+            echo "🎉 Deployment complete!"
+
+      - name: Health Check
+        run: |
+          sleep 15
+          curl -f http://${{ secrets.VPS_HOST }}/api/v1/health || exit 1
+          echo "✅ Health check passed!"

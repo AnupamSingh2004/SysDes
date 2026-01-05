@@ -100,13 +100,13 @@ func (h *Handler) GitHubCallback(c *fiber.Ctx) error {
 		return c.Redirect(h.config.FrontendURL + "/login?error=auth_failed")
 	}
 
-	// Set tokens in HTTP-only cookies for security
+	// Set tokens in HTTP-only cookies for security (works for same-domain)
 	h.setAuthCookies(c, authResponse.Tokens)
 
 	logger.Info().Str("user_id", authResponse.User.ID).Str("email", authResponse.User.Email).Msg("User logged in via GitHub")
 
-	// Redirect to frontend with success
-	return c.Redirect(h.config.FrontendURL + "/auth/callback?provider=github")
+	// Redirect to frontend with token in URL (for cross-domain support)
+	return c.Redirect(h.config.FrontendURL + "/auth/callback?provider=github&token=" + authResponse.Tokens.AccessToken)
 }
 
 // ==================== Google OAuth Endpoints ====================
@@ -177,13 +177,13 @@ func (h *Handler) GoogleCallback(c *fiber.Ctx) error {
 		return c.Redirect(h.config.FrontendURL + "/login?error=auth_failed")
 	}
 
-	// Set tokens in HTTP-only cookies for security
+	// Set tokens in HTTP-only cookies for security (works for same-domain)
 	h.setAuthCookies(c, authResponse.Tokens)
 
 	logger.Info().Str("user_id", authResponse.User.ID).Str("email", authResponse.User.Email).Msg("User logged in via Google")
 
-	// Redirect to frontend with success
-	return c.Redirect(h.config.FrontendURL + "/auth/callback?provider=google")
+	// Redirect to frontend with token in URL (for cross-domain support)
+	return c.Redirect(h.config.FrontendURL + "/auth/callback?provider=google&token=" + authResponse.Tokens.AccessToken)
 }
 
 // ==================== User Endpoints ====================
