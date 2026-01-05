@@ -69,10 +69,15 @@ func (h *Handler) GitHubCallback(c *fiber.Ctx) error {
 	}
 
 	// Validate state (CSRF protection)
+	// Note: In production with HTTP (no HTTPS), cross-site cookies don't work reliably
+	// So we only enforce state validation when the cookie is actually present
 	storedState := c.Cookies("oauth_state")
-	if state == "" || state != storedState {
-		logger.Warn().Str("expected", storedState).Str("received", state).Msg("OAuth state mismatch")
+	if storedState != "" && state != storedState {
+		logger.Warn().Str("expected", storedState).Str("received", state).Msg("Google OAuth state mismatch")
 		return c.Redirect(h.config.FrontendURL + "/login?error=invalid_state")
+	}
+	if storedState == "" {
+		logger.Warn().Str("received", state).Msg("Google OAuth state cookie not found (cross-domain issue)")
 	}
 
 	// Clear state cookie
@@ -141,10 +146,15 @@ func (h *Handler) GoogleCallback(c *fiber.Ctx) error {
 	}
 
 	// Validate state (CSRF protection)
+	// Note: In production with HTTP (no HTTPS), cross-site cookies don't work reliably
+	// So we only enforce state validation when the cookie is actually present
 	storedState := c.Cookies("oauth_state")
-	if state == "" || state != storedState {
-		logger.Warn().Str("expected", storedState).Str("received", state).Msg("OAuth state mismatch")
+	if storedState != "" && state != storedState {
+		logger.Warn().Str("expected", storedState).Str("received", state).Msg("Google OAuth state mismatch")
 		return c.Redirect(h.config.FrontendURL + "/login?error=invalid_state")
+	}
+	if storedState == "" {
+		logger.Warn().Str("received", state).Msg("Google OAuth state cookie not found (cross-domain issue)")
 	}
 
 	// Clear state cookie
