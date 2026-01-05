@@ -48,6 +48,7 @@ export const DEFAULT_INTERACTION_STATE: InteractionState = {
   resizeHandle: null,
   initialBounds: null,
   initialPoints: null,
+  initialFontSize: null,
   selectionBox: null,
   drawingShape: null,
   hoveredShapeId: null,
@@ -122,9 +123,9 @@ export const STROKE_WIDTHS = [1, 2, 3, 4, 6] as const;
 // ============================================
 
 export const FONT_FAMILIES = [
-  { name: "Hand-drawn", value: "Virgil, Segoe UI Emoji" },
+  { name: "Hand-drawn", value: "Virgil" },
   { name: "Normal", value: "Helvetica, Arial, sans-serif" },
-  { name: "Code", value: "Cascadia, Fira Code, monospace" },
+  { name: "Code", value: "Cascadia, monospace" },
 ] as const;
 
 export const FONT_SIZES = [16, 20, 24, 32, 48, 64] as const;

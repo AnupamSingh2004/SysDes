@@ -11,6 +11,7 @@ import type {
   LineShape,
   ArrowShape,
   FreedrawShape,
+  TextShape,
   ShapeStyle,
   ResizeHandle,
 } from "@/lib/canvas";
@@ -141,10 +142,30 @@ export function isPointInShape(point: Point, shape: Shape): boolean {
     case "freedraw":
       return isPointNearFreedraw(point, shape);
     case "text":
-      return isPointInBounds(point, bounds);
+      return isPointInText(point, shape);
     default:
       return isPointInBounds(point, bounds);
   }
+}
+
+// For text shapes, use a tighter hit area based on actual text content
+function isPointInText(point: Point, shape: TextShape): boolean {
+  // If text is empty, use the placeholder bounds
+  if (!shape.text) {
+    return isPointInBounds(point, { x: shape.x, y: shape.y, width: shape.width, height: shape.height });
+  }
+  
+  // Calculate actual text bounds based on content
+  // Use a smaller hit area - only the text content area, not the full bounding box
+  const padding = 4; // Small padding around text
+  const textBounds = {
+    x: shape.x - padding,
+    y: shape.y - padding,
+    width: shape.width + padding * 2,
+    height: shape.height + padding * 2,
+  };
+  
+  return isPointInBounds(point, textBounds);
 }
 
 function isPointInRectangle(point: Point, shape: RectangleShape): boolean {

@@ -9,7 +9,7 @@ import { useCallback, useEffect, useState } from "react";
 import { ArrowLeft, Save, Share2, Settings, Sparkles, X } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { CustomCanvas, CanvasToolbar, StylePanel, useCanvasStore } from "@/components/canvas";
+import { CustomCanvas, CanvasToolbar, StylePanel, TextStylePanel, useCanvasStore } from "@/components/canvas";
 import { Logo } from "@/components/shared";
 import { api, Project, Suggestion } from "@/lib/api";
 import { useAuthContext } from "@/providers/auth-provider";
@@ -189,10 +189,11 @@ export default function CanvasPage() {
           <CustomCanvas className="w-full h-full" />
         </div>
 
-        {/* Right Style Panel */}
+        {/* Right Style Panels */}
         {showStylePanel && (
-          <div className="absolute top-4 right-4 z-10">
+          <div className="absolute top-4 right-4 z-10 flex flex-col gap-3">
             <StylePanel />
+            <TextStylePanel />
           </div>
         )}
 

@@ -14,7 +14,40 @@ import { ShapeRenderer } from "./shape-renderer";
 import { screenToCanvas, getResizeHandleAtPoint, getCursorForHandle, getShapeBounds } from "./utils";
 
 // ============================================
-// Text Editor Component
+// Text Measurement Utilities
+// ============================================
+
+function measureText(
+  text: string,
+  fontSize: number,
+  fontFamily: string,
+  lineHeight: number = 1.25
+): { width: number; height: number } {
+  // Create a temporary canvas for text measurement
+  const canvas = document.createElement("canvas");
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return { width: 100, height: fontSize * lineHeight };
+  
+  ctx.font = `${fontSize}px ${fontFamily}`;
+  
+  const lines = text.split("\n");
+  let maxWidth = 0;
+  
+  for (const line of lines) {
+    const metrics = ctx.measureText(line || " ");
+    maxWidth = Math.max(maxWidth, metrics.width);
+  }
+  
+  const height = lines.length * fontSize * lineHeight;
+  
+  return {
+    width: Math.max(maxWidth + 4, 100), // min width of 100
+    height: Math.max(height, fontSize * lineHeight),
+  };
+}
+
+// ============================================
+// Text Editor Component (Excalidraw-style WYSIWYG)
 // ============================================
 
 interface TextEditorProps {
@@ -23,7 +56,6 @@ interface TextEditorProps {
   scrollX: number;
   scrollY: number;
   onFinish: (text: string, newWidth?: number, newHeight?: number) => void;
-  onCancel: () => void;
 }
 
 const TextEditor = memo(function TextEditor({
@@ -32,108 +64,128 @@ const TextEditor = memo(function TextEditor({
   scrollX,
   scrollY,
   onFinish,
-  onCancel,
 }: TextEditorProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const measureRef = useRef<HTMLDivElement>(null);
   const [value, setValue] = useState(shape.text);
   const isFirstRender = useRef(true);
+  const hasFinished = useRef(false);
+
+  // Reset value when shape changes (e.g., editing a different text)
+  useEffect(() => {
+    setValue(shape.text);
+    hasFinished.current = false;
+  }, [shape.id, shape.text]);
+
+  // Auto-resize textarea as content changes
+  const dimensions = useMemo(() => {
+    const measured = measureText(value || " ", shape.fontSize, shape.fontFamily, shape.lineHeight);
+    return {
+      width: Math.max(measured.width, 100),
+      height: Math.max(measured.height, shape.fontSize * (shape.lineHeight || 1.25)),
+    };
+  }, [value, shape.fontSize, shape.fontFamily, shape.lineHeight]);
 
   // Focus the textarea on mount
   useEffect(() => {
     const timer = setTimeout(() => {
       if (textareaRef.current) {
         textareaRef.current.focus();
-        // Place cursor at end
-        textareaRef.current.setSelectionRange(value.length, value.length);
+        // Select all text when editing existing text, cursor at end for new text
+        if (shape.text) {
+          textareaRef.current.select();
+        } else {
+          textareaRef.current.setSelectionRange(0, 0);
+        }
         isFirstRender.current = false;
       }
-    }, 10);
+    }, 0);
     return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Calculate screen position
+  // Calculate screen position - offset slightly for visibility
   const screenX = (shape.x + scrollX) * zoom;
-  const screenY = (shape.y + scrollY) * zoom;
+  const screenY = (shape.y + scrollY) * zoom - 4; // Slight offset above
   
-  // Calculate content size based on text
-  const lineHeight = (shape.lineHeight || 1.25) * shape.fontSize * zoom;
-  const lines = value.split("\n");
-  const contentHeight = Math.max(lineHeight * lines.length + 16, shape.height * zoom);
+  const finishEditing = useCallback(() => {
+    if (hasFinished.current) return;
+    hasFinished.current = true;
+    const measured = measureText(value || " ", shape.fontSize, shape.fontFamily, shape.lineHeight);
+    onFinish(value, measured.width, measured.height);
+  }, [value, shape.fontSize, shape.fontFamily, shape.lineHeight, onFinish]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    e.stopPropagation(); // Prevent canvas shortcuts
-    if (e.key === "Escape") {
+    e.stopPropagation();
+    
+    // Escape or Tab to finish editing (save changes)
+    if (e.key === "Escape" || e.key === "Tab") {
       e.preventDefault();
-      onCancel();
+      finishEditing();
+      return;
     }
-    // Allow Shift+Enter for new lines, Enter alone finishes editing
-    // Removed single Enter to finish - users can click outside instead
+    
+    // Shift+Enter for new line (Enter alone also works naturally in textarea)
   };
 
   const handleBlur = () => {
     if (!isFirstRender.current) {
-      // Calculate the new size based on content
-      if (measureRef.current) {
-        const rect = measureRef.current.getBoundingClientRect();
-        const newWidth = Math.max(200, rect.width / zoom + 20);
-        const newHeight = Math.max(30, rect.height / zoom + 10);
-        onFinish(value, newWidth, newHeight);
-      } else {
-        onFinish(value);
-      }
+      finishEditing();
     }
   };
 
+  const scaledFontSize = shape.fontSize * zoom;
+  const scaledLineHeight = shape.lineHeight || 1.25;
+  // Use a reasonable max width for wrapping, or shape width if larger
+  const maxWidth = Math.max(shape.width * zoom, 300 * zoom);
+  const scaledWidth = Math.max(dimensions.width * zoom, 100 * zoom, maxWidth);
+  const scaledHeight = Math.max(dimensions.height * zoom, scaledFontSize * scaledLineHeight);
+
   return (
-    <>
-      {/* Hidden div to measure text content */}
-      <div
-        ref={measureRef}
-        style={{
-          position: "absolute",
-          visibility: "hidden",
-          whiteSpace: "pre-wrap",
-          wordBreak: "break-word",
-          fontSize: shape.fontSize * zoom,
-          fontFamily: shape.fontFamily,
-          lineHeight: shape.lineHeight || 1.25,
-          padding: "4px 8px",
-          minWidth: 150,
-          maxWidth: 500 * zoom,
-        }}
-      >
-        {value || " "}
-      </div>
+    <div
+      className="fixed z-[9999] pointer-events-auto"
+      style={{
+        left: screenX,
+        top: screenY,
+        transformOrigin: "top left",
+      }}
+      onPointerDown={(e) => e.stopPropagation()}
+      onClick={(e) => e.stopPropagation()}
+    >
       <textarea
         ref={textareaRef}
         value={value}
         onChange={(e) => setValue(e.target.value)}
         onKeyDown={handleKeyDown}
         onBlur={handleBlur}
-        onPointerDown={(e) => e.stopPropagation()}
-        className="absolute z-50 border-2 border-blue-500 rounded-md outline-none resize-none"
+        className="block border-none outline-none resize-none"
         style={{
-          left: screenX,
-          top: screenY,
-          width: Math.max(200, shape.width * zoom),
-          height: contentHeight,
-          fontSize: shape.fontSize * zoom,
+          width: scaledWidth,
+          minWidth: 100 * zoom,
+          maxWidth: "80vw", // Prevent going off screen
+          minHeight: scaledHeight,
+          fontSize: scaledFontSize,
           fontFamily: shape.fontFamily,
           color: shape.strokeColor,
-          backgroundColor: "rgba(18, 18, 18, 0.98)",
-          lineHeight: shape.lineHeight || 1.25,
-          padding: "4px 8px",
+          lineHeight: scaledLineHeight,
+          padding: "4px 2px",
           margin: 0,
-          caretColor: "#3b82f6",
           textAlign: shape.textAlign,
-          boxShadow: "0 4px 20px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(59, 130, 246, 0.3)",
+          caretColor: shape.strokeColor,
           overflow: "hidden",
+          whiteSpace: "pre-wrap",
+          wordWrap: "break-word",
+          overflowWrap: "break-word",
+          wordBreak: "break-word",
+          // Excalidraw-style subtle highlight
+          background: "rgba(30, 30, 30, 0.95)",
+          borderRadius: "4px",
+          boxShadow: "0 0 0 2px rgba(59, 130, 246, 0.6), 0 4px 12px rgba(0,0,0,0.3)",
         }}
-        placeholder="Type something..."
+        placeholder="Type here..."
         autoFocus
+        spellCheck={false}
       />
-    </>
+    </div>
   );
 });
 
@@ -401,11 +453,18 @@ export function CustomCanvas({ className }: CustomCanvasProps) {
         }
 
         case "text": {
-          // Check if clicking on an existing text shape to edit it
+          // Check if clicking on an existing text shape
           const clickedShape = storeActions.getShapeAtPoint(point);
           if (clickedShape?.type === "text") {
-            storeActions.selectShape(clickedShape.id, false);
-            storeActions.startTextEditing(clickedShape.id);
+            // Single click just selects the text (double-click to edit)
+            if (!canvas.selectedIds.includes(clickedShape.id)) {
+              storeActions.selectShape(clickedShape.id, false);
+            }
+            // Allow dragging the text shape
+            storeActions.startDragging(point);
+            localStateRef.current.isDragging = true;
+            localStateRef.current.draggedShapes.clear();
+            localStateRef.current.draggedShapes.set(clickedShape.id, { x: clickedShape.x, y: clickedShape.y });
           } else {
             // Create new text shape at click position
             storeActions.deselectAll();
@@ -807,7 +866,6 @@ export function CustomCanvas({ className }: CustomCanvasProps) {
               scrollX={scrollX}
               scrollY={scrollY}
               onFinish={(text, newWidth, newHeight) => storeActions.finishTextEditing(text, newWidth, newHeight)}
-              onCancel={() => storeActions.cancelTextEditing()}
             />
           );
         }

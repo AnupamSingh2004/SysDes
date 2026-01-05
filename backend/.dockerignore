@@ -1,0 +1,27 @@
+# Ignore local development files
+.env
+.env.*
+*.log
+
+# Ignore build artifacts
+*.exe
+*.test
+*.out
+sysdes-server
+
+# Ignore git
+.git
+.gitignore
+
+# Ignore IDE files
+.vscode
+.idea
+*.swp
+*.swo
+
+# Ignore test files
+*_test.go
+
+# Ignore documentation
+README.md
+docs/

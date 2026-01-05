@@ -25,9 +25,16 @@ import {
   ChevronDown,
   ChevronUp,
   Palette,
+  AlignLeft,
+  AlignCenter,
+  AlignRight,
+  AlignVerticalJustifyStart,
+  AlignVerticalJustifyCenter,
+  AlignVerticalJustifyEnd,
+  CaseSensitive,
 } from "lucide-react";
-import type { ToolType, StrokeStyle, FillStyle } from "@/lib/canvas";
-import { COLOR_PALETTE, STROKE_WIDTHS } from "@/lib/canvas";
+import type { ToolType, StrokeStyle, FillStyle, TextShape } from "@/lib/canvas";
+import { COLOR_PALETTE, STROKE_WIDTHS, FONT_FAMILIES } from "@/lib/canvas";
 import { useCanvasStore } from "./store";
 import { cn } from "@/lib/utils";
 import {
@@ -485,6 +492,178 @@ export function StylePanel({ className }: { className?: string }) {
                     )}
                   </svg>
                   <span className="text-[10px] font-medium text-zinc-400">{label}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ============================================
+// Text Style Panel (shows when text is selected or text tool is active)
+// ============================================
+
+export function TextStylePanel({ className }: { className?: string }) {
+  const { activeTool, selectedIds, shapes } = useCanvasStore(
+    useShallow((s) => ({
+      activeTool: s.canvas.activeTool,
+      selectedIds: s.canvas.selectedIds,
+      shapes: s.canvas.shapes,
+    }))
+  );
+  const updateShape = useCanvasStore((s) => s.updateShape);
+  const [isExpanded, setIsExpanded] = React.useState(true);
+
+  // Get the selected text shape if any
+  const selectedTextShape = React.useMemo(() => {
+    if (selectedIds.length !== 1) return null;
+    const shape = shapes.find(s => s.id === selectedIds[0]);
+    return shape?.type === "text" ? shape as TextShape : null;
+  }, [selectedIds, shapes]);
+
+  // Show panel only when text tool is active or a text shape is selected
+  const shouldShow = activeTool === "text" || selectedTextShape !== null;
+
+  if (!shouldShow) return null;
+
+  const textShape = selectedTextShape;
+
+  const updateTextProperty = (updates: Partial<TextShape>) => {
+    if (textShape) {
+      updateShape(textShape.id, updates);
+    }
+  };
+
+  return (
+    <div className={cn("bg-zinc-900/95 backdrop-blur border border-zinc-800 rounded-xl overflow-hidden shadow-xl", className)}>
+      {/* Header */}
+      <button
+        onClick={() => setIsExpanded(!isExpanded)}
+        className="w-full flex items-center justify-between p-3 hover:bg-zinc-800/50 transition-colors border-b border-zinc-800/50"
+      >
+        <div className="flex items-center gap-2">
+          <div className="w-6 h-6 rounded-md bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center">
+            <CaseSensitive size={14} className="text-white" />
+          </div>
+          <span className="text-sm font-medium text-zinc-200">Text</span>
+        </div>
+        <div className={cn("p-1 rounded-md transition-all", isExpanded ? "bg-zinc-800" : "hover:bg-zinc-800")}>
+          {isExpanded ? <ChevronUp size={14} className="text-zinc-400" /> : <ChevronDown size={14} className="text-zinc-400" />}
+        </div>
+      </button>
+
+      {isExpanded && (
+        <div className="flex flex-col gap-4 p-4 min-w-[220px]">
+          {/* Font Size */}
+          <div className="space-y-2">
+            <label className="text-xs font-medium text-zinc-400 uppercase tracking-wider">Font Size</label>
+            <div className="grid grid-cols-3 gap-2">
+              {([
+                { size: 16, label: "S" },
+                { size: 20, label: "M" },
+                { size: 28, label: "L" },
+                { size: 36, label: "XL" },
+                { size: 48, label: "2XL" },
+                { size: 64, label: "3XL" },
+              ]).map(({ size, label }) => (
+                <button
+                  key={size}
+                  onClick={() => updateTextProperty({ fontSize: size })}
+                  disabled={!textShape}
+                  className={cn(
+                    "p-2 rounded-lg border-2 transition-all duration-150 flex items-center justify-center",
+                    textShape?.fontSize === size
+                      ? "border-blue-500 bg-blue-500/10"
+                      : "border-zinc-700 hover:border-zinc-600 hover:bg-zinc-800/50",
+                    !textShape && "opacity-50 cursor-not-allowed"
+                  )}
+                >
+                  <span className="text-xs font-medium text-zinc-300">{label}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Font Family */}
+          <div className="space-y-2">
+            <label className="text-xs font-medium text-zinc-400 uppercase tracking-wider">Font Family</label>
+            <div className="flex flex-col gap-2">
+              {FONT_FAMILIES.map(({ name, value }) => (
+                <button
+                  key={value}
+                  onClick={() => updateTextProperty({ fontFamily: value })}
+                  disabled={!textShape}
+                  className={cn(
+                    "p-2 rounded-lg border-2 transition-all duration-150 text-left",
+                    textShape?.fontFamily === value
+                      ? "border-blue-500 bg-blue-500/10"
+                      : "border-zinc-700 hover:border-zinc-600 hover:bg-zinc-800/50",
+                    !textShape && "opacity-50 cursor-not-allowed"
+                  )}
+                >
+                  <span 
+                    className="text-sm text-zinc-300" 
+                    style={{ fontFamily: value }}
+                  >
+                    {name}
+                  </span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Text Alignment */}
+          <div className="space-y-2">
+            <label className="text-xs font-medium text-zinc-400 uppercase tracking-wider">Text Align</label>
+            <div className="flex gap-2">
+              {([
+                { align: "left" as const, icon: AlignLeft },
+                { align: "center" as const, icon: AlignCenter },
+                { align: "right" as const, icon: AlignRight },
+              ]).map(({ align, icon: Icon }) => (
+                <button
+                  key={align}
+                  onClick={() => updateTextProperty({ textAlign: align })}
+                  disabled={!textShape}
+                  className={cn(
+                    "flex-1 p-2 rounded-lg border-2 transition-all duration-150 flex items-center justify-center",
+                    textShape?.textAlign === align
+                      ? "border-blue-500 bg-blue-500/10"
+                      : "border-zinc-700 hover:border-zinc-600 hover:bg-zinc-800/50",
+                    !textShape && "opacity-50 cursor-not-allowed"
+                  )}
+                >
+                  <Icon size={16} className="text-zinc-300" />
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Vertical Alignment */}
+          <div className="space-y-2">
+            <label className="text-xs font-medium text-zinc-400 uppercase tracking-wider">Vertical Align</label>
+            <div className="flex gap-2">
+              {([
+                { align: "top" as const, icon: AlignVerticalJustifyStart },
+                { align: "middle" as const, icon: AlignVerticalJustifyCenter },
+                { align: "bottom" as const, icon: AlignVerticalJustifyEnd },
+              ]).map(({ align, icon: Icon }) => (
+                <button
+                  key={align}
+                  onClick={() => updateTextProperty({ verticalAlign: align })}
+                  disabled={!textShape}
+                  className={cn(
+                    "flex-1 p-2 rounded-lg border-2 transition-all duration-150 flex items-center justify-center",
+                    textShape?.verticalAlign === align
+                      ? "border-blue-500 bg-blue-500/10"
+                      : "border-zinc-700 hover:border-zinc-600 hover:bg-zinc-800/50",
+                    !textShape && "opacity-50 cursor-not-allowed"
+                  )}
+                >
+                  <Icon size={16} className="text-zinc-300" />
                 </button>
               ))}
             </div>

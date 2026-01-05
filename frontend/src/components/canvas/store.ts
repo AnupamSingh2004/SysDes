@@ -22,6 +22,40 @@ import { getShapeBounds, isPointInShape, snapPointToGrid, createShapeId, generat
 // Utilities
 // ============================================
 
+// Measure text dimensions for text shapes
+function measureTextForStore(
+  text: string,
+  fontSize: number,
+  fontFamily: string,
+  lineHeight: number = 1.25
+): { width: number; height: number } {
+  if (typeof document === "undefined") {
+    // SSR fallback
+    return { width: 100, height: fontSize * lineHeight };
+  }
+  
+  const canvas = document.createElement("canvas");
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return { width: 100, height: fontSize * lineHeight };
+  
+  ctx.font = `${fontSize}px ${fontFamily}`;
+  
+  const lines = text.split("\n");
+  let maxWidth = 0;
+  
+  for (const line of lines) {
+    const metrics = ctx.measureText(line || " ");
+    maxWidth = Math.max(maxWidth, metrics.width);
+  }
+  
+  const height = lines.length * fontSize * lineHeight;
+  
+  return {
+    width: Math.max(maxWidth + 8, 50), // Add padding, min width of 50
+    height: Math.max(height, fontSize * lineHeight),
+  };
+}
+
 // Fast deep clone for shapes (avoids JSON.parse/stringify overhead)
 function cloneShape(shape: Shape): Shape {
   const clone = { ...shape };
@@ -668,6 +702,9 @@ export const useCanvasStore = create<CanvasStore>()((set, get) => ({
         ? shape.points.map((p) => ({ x: p.x, y: p.y }))
         : null;
 
+    // Capture initial font size for text shapes
+    const initialFontSize = shape.type === "text" ? shape.fontSize : null;
+
     set({
       interaction: {
         ...get().interaction,
@@ -681,6 +718,7 @@ export const useCanvasStore = create<CanvasStore>()((set, get) => ({
           height: shape.height,
         },
         initialPoints,
+        initialFontSize,
       },
     });
   },
@@ -796,10 +834,14 @@ export const useCanvasStore = create<CanvasStore>()((set, get) => ({
       };
     } else if (currentShape.type === "text") {
       // Scale font size proportionally when resizing text
+      // Use the initial font size from when resizing started
+      const initialFontSize = interaction.initialFontSize || currentShape.fontSize;
       const scaleX = initial.width > 0 ? width / initial.width : 1;
       const scaleY = initial.height > 0 ? height / initial.height : 1;
-      const scale = Math.min(scaleX, scaleY); // Use the smaller scale to maintain readability
-      const newFontSize = Math.max(8, Math.round(currentShape.fontSize * scale));
+      // Use the average scale for more natural text scaling
+      const scale = (scaleX + scaleY) / 2;
+      // Calculate new font size based on initial, with no minimum restriction for full flexibility
+      const newFontSize = Math.max(6, Math.round(initialFontSize * scale));
       
       updatedShape = {
         ...currentShape,
@@ -808,6 +850,7 @@ export const useCanvasStore = create<CanvasStore>()((set, get) => ({
         width,
         height,
         fontSize: newFontSize,
+        autoResize: false, // Disable auto-resize when manually resizing
         updatedAt: Date.now(),
       };
     } else {
@@ -828,6 +871,32 @@ export const useCanvasStore = create<CanvasStore>()((set, get) => ({
   },
 
   finishResizing: () => {
+    const state = get();
+    const { canvas } = state;
+    
+    // For text shapes, recalculate bounds to fit the text with the new font size
+    if (canvas.selectedIds.length === 1) {
+      const shapeIndex = canvas.shapes.findIndex((s) => s.id === canvas.selectedIds[0]);
+      if (shapeIndex !== -1) {
+        const shape = canvas.shapes[shapeIndex];
+        if (shape.type === "text" && shape.text) {
+          // Measure the text with the new font size
+          const measured = measureTextForStore(shape.text, shape.fontSize, shape.fontFamily, shape.lineHeight);
+          
+          const updatedShape = {
+            ...shape,
+            width: measured.width,
+            height: measured.height,
+            updatedAt: Date.now(),
+          };
+          
+          const newShapes = [...canvas.shapes];
+          newShapes[shapeIndex] = updatedShape;
+          set({ canvas: { ...canvas, shapes: newShapes } });
+        }
+      }
+    }
+    
     set({ interaction: { ...DEFAULT_INTERACTION_STATE } });
     get().saveToHistory();
   },
@@ -1043,7 +1112,7 @@ export const useCanvasStore = create<CanvasStore>()((set, get) => ({
       updatedAt: Date.now(),
       text: "",
       fontSize: 20,
-      fontFamily: "Virgil, Segoe UI Emoji, sans-serif",
+      fontFamily: "Virgil",
       textAlign: "left",
       verticalAlign: "middle",
       lineHeight: 1.25,

@@ -216,6 +216,7 @@ export interface InteractionState {
   resizeHandle: ResizeHandle | null;
   initialBounds: Bounds | null;
   initialPoints: Point[] | null;
+  initialFontSize: number | null; // For text shapes - to scale font proportionally
 
   // For selection box
   selectionBox: Bounds | null;
