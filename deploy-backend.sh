@@ -32,15 +32,15 @@ export $(cat "$SCRIPT_DIR/.env" | grep -v '^#' | xargs)
 
 # Build backend image
 echo "🐳 Building backend Docker image..."
-docker-compose -f docker-compose.backend.yml build --no-cache backend
+docker compose -f docker-compose.backend.yml build --no-cache backend
 
 # Stop existing containers
 echo "🔄 Stopping existing containers..."
-docker-compose -f docker-compose.backend.yml down
+docker compose -f docker-compose.backend.yml down
 
 # Start services
 echo "🚀 Starting backend services..."
-docker-compose -f docker-compose.backend.yml up -d
+docker compose -f docker-compose.backend.yml up -d
 
 # Wait for services to be healthy
 echo "⏳ Waiting for services to be healthy..."
@@ -49,13 +49,13 @@ sleep 10
 # Check PostgreSQL health
 echo "🏥 Checking PostgreSQL..."
 for i in {1..30}; do
-    if docker-compose -f docker-compose.backend.yml exec -T postgres pg_isready -U ${DB_USER:-sysdes} > /dev/null 2>&1; then
+    if docker-compose -f docker compose.backend.yml exec -T postgres pg_isready -U ${DB_USER:-sysdes} > /dev/null 2>&1; then
         echo "✅ PostgreSQL is healthy!"
         break
     fi
     if [ $i -eq 30 ]; then
         echo "❌ PostgreSQL health check failed!"
-        docker-compose -f docker-compose.backend.yml logs postgres
+        docker compose -f docker-compose.backend.yml logs postgres
         exit 1
     fi
     echo "Waiting for PostgreSQL... ($i/30)"
@@ -81,7 +81,7 @@ done
 # Show logs
 echo ""
 echo "📋 Recent logs:"
-docker-compose -f docker-compose.backend.yml logs --tail=20
+docker compose -f docker-compose.backend.yml logs --tail=20
 
 echo ""
 echo "✅ Backend deployment completed successfully!"
