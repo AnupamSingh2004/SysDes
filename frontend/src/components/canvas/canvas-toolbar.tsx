@@ -32,6 +32,7 @@ import {
   AlignVerticalJustifyCenter,
   AlignVerticalJustifyEnd,
   CaseSensitive,
+  Eraser,
 } from "lucide-react";
 import type { ToolType, StrokeStyle, FillStyle, TextShape } from "@/lib/canvas";
 import { COLOR_PALETTE, STROKE_WIDTHS, FONT_FAMILIES } from "@/lib/canvas";
@@ -123,6 +124,7 @@ export function CanvasToolbar({ className }: CanvasToolbarProps) {
           <ToolButton tool="line" icon={<Minus size={20} />} label="Line" shortcut="L" />
           <ToolButton tool="arrow" icon={<ArrowRight size={20} />} label="Arrow" shortcut="A" />
           <ToolButton tool="freedraw" icon={<Pencil size={20} />} label="Draw" shortcut="P" />
+          <ToolButton tool="eraser" icon={<Eraser size={20} />} label="Eraser" shortcut="E" />
           <ToolButton tool="text" icon={<Type size={20} />} label="Text" shortcut="T" />
         </div>
 

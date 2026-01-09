@@ -252,6 +252,7 @@ export function CustomCanvas({ className }: CustomCanvasProps) {
   const zoom = useCanvasStore((s) => s.canvas.zoom);
   const showGrid = useCanvasStore((s) => s.canvas.showGrid);
   const gridSize = useCanvasStore((s) => s.canvas.gridSize);
+  const currentStyle = useCanvasStore((s) => s.canvas.currentStyle);
   const mode = useCanvasStore((s) => s.interaction.mode);
   const hoveredShapeId = useCanvasStore((s) => s.interaction.hoveredShapeId);
   const storeDrawingShape = useCanvasStore((s) => s.interaction.drawingShape);
@@ -338,6 +339,10 @@ export function CustomCanvas({ className }: CustomCanvasProps) {
               const hoveredShape = storeActions.getShapeAtPoint(point);
               storeActions.setHoveredShape(hoveredShape?.id || null);
               setCursor(hoveredShape ? "move" : "default");
+            } else if (state.canvas.activeTool === "eraser") {
+              storeActions.setHoveredShape(null);
+              // Custom eraser cursor - circle indicator
+              setCursor("crosshair");
             } else {
               storeActions.setHoveredShape(null);
               setCursor("crosshair");
@@ -433,9 +438,10 @@ export function CustomCanvas({ className }: CustomCanvasProps) {
         case "ellipse":
         case "line":
         case "arrow":
-        case "freedraw": {
+        case "freedraw":
+        case "eraser": {
           const clickedShape = storeActions.getShapeAtPoint(point);
-          if (clickedShape && canvas.selectedIds.includes(clickedShape.id)) {
+          if (clickedShape && canvas.selectedIds.includes(clickedShape.id) && canvas.activeTool !== "eraser") {
             storeActions.startDragging(point);
             localStateRef.current.isDragging = true;
             
@@ -667,6 +673,10 @@ export function CustomCanvas({ className }: CustomCanvasProps) {
         case "7":
           storeActions.setTool("freedraw");
           break;
+        case "e":
+        case "9":
+          storeActions.setTool("eraser");
+          break;
         case "t":
         case "8":
           storeActions.setTool("text");
@@ -712,9 +722,31 @@ export function CustomCanvas({ className }: CustomCanvasProps) {
 
   const renderDrawingPreview = () => {
     if (mode !== "drawing" || !storeDrawingShape) return null;
+    
+    // For eraser, show a circle indicator instead of the shape
+    if (storeDrawingShape.type === "eraser") {
+      const eraserRadius = Math.max(currentStyle.strokeWidth * 3, 15);
+      const eraserShape = storeDrawingShape as import("@/lib/canvas").EraserShape;
+      const lastPoint = eraserShape.points[eraserShape.points.length - 1];
+      return (
+        <g>
+          <circle
+            cx={eraserShape.x + lastPoint.x}
+            cy={eraserShape.y + lastPoint.y}
+            r={eraserRadius}
+            fill="none"
+            stroke="#ef4444"
+            strokeWidth={2 / zoom}
+            strokeDasharray={`${4 / zoom},${4 / zoom}`}
+            opacity={0.8}
+          />
+        </g>
+      );
+    }
+    
     return (
       <g opacity={0.8}>
-        <ShapeRenderer shape={storeDrawingShape} />
+        <ShapeRenderer shape={storeDrawingShape as import("@/lib/canvas").Shape} />
       </g>
     );
   };

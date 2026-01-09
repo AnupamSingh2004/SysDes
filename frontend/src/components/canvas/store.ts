@@ -14,6 +14,8 @@ import type {
   Point,
   Bounds,
   ResizeHandle,
+  InternalShape,
+  EraserShape,
 } from "@/lib/canvas";
 import { DEFAULT_CANVAS_STATE, DEFAULT_INTERACTION_STATE, CANVAS_CONFIG } from "@/lib/canvas";
 import { getShapeBounds, isPointInShape, snapPointToGrid, createShapeId, generateSeed } from "./utils";
@@ -443,7 +445,7 @@ export const useCanvasStore = create<CanvasStore>()((set, get) => ({
       updatedAt: now,
     };
 
-    let drawingShape: Shape | null = null;
+    let drawingShape: InternalShape | null = null;
 
     switch (activeTool) {
       case "rectangle":
@@ -477,6 +479,15 @@ export const useCanvasStore = create<CanvasStore>()((set, get) => ({
           points: [{ x: 0, y: 0 }],
           pressures: [0.5],
         } as Shape;
+        break;
+      case "eraser":
+        // Eraser doesn't create a shape, it removes shapes
+        drawingShape = {
+          ...baseShape,
+          type: "eraser",
+          points: [{ x: 0, y: 0 }],
+          pressures: [0.5],
+        } as EraserShape;
         break;
     }
 
@@ -528,7 +539,7 @@ export const useCanvasStore = create<CanvasStore>()((set, get) => ({
     const width = Math.abs(targetPoint.x - startPoint.x);
     const height = Math.abs(targetPoint.y - startPoint.y);
 
-    let updatedShape: Shape;
+    let updatedShape: InternalShape;
 
     switch (shape.type) {
       case "rectangle":
@@ -590,6 +601,114 @@ export const useCanvasStore = create<CanvasStore>()((set, get) => ({
         };
         break;
       }
+      case "eraser": {
+        // For eraser, accumulate points and remove shapes that intersect with the eraser path
+        const eraserShape = shape as EraserShape;
+        const lastPoint = eraserShape.points[eraserShape.points.length - 1];
+        const dx = targetPoint.x - startPoint.x - lastPoint.x;
+        const dy = targetPoint.y - startPoint.y - lastPoint.y;
+
+        let newPoints = eraserShape.points;
+        let newPressures = eraserShape.pressures;
+
+        if (Math.abs(dx) > 2 || Math.abs(dy) > 2) {
+          newPoints = [
+            ...eraserShape.points,
+            { x: targetPoint.x - startPoint.x, y: targetPoint.y - startPoint.y },
+          ];
+          newPressures = [...eraserShape.pressures, 0.5];
+
+          // Eraser world point
+          const worldPoint = {
+            x: targetPoint.x,
+            y: targetPoint.y,
+          };
+
+          // Find shapes to erase using isPointInShape for precise hit testing
+          const eraserRadius = Math.max(canvas.currentStyle.strokeWidth * 3, 15); // Eraser size
+          const shapesToKeep = canvas.shapes.filter((s) => {
+            // Check if the eraser point is inside or near the shape
+            if (isPointInShape(worldPoint, s)) {
+              return false; // Remove this shape
+            }
+            
+            // Also check with expanded bounds for near-misses
+            const bounds = getShapeBounds(s);
+            const expandedBounds = {
+              x: bounds.x - eraserRadius,
+              y: bounds.y - eraserRadius,
+              width: bounds.width + eraserRadius * 2,
+              height: bounds.height + eraserRadius * 2,
+            };
+            
+            // Check if point is within expanded bounds and close to shape
+            if (
+              worldPoint.x >= expandedBounds.x &&
+              worldPoint.x <= expandedBounds.x + expandedBounds.width &&
+              worldPoint.y >= expandedBounds.y &&
+              worldPoint.y <= expandedBounds.y + expandedBounds.height
+            ) {
+              // For freedraw, check distance to path segments
+              if (s.type === "freedraw" || s.type === "line" || s.type === "arrow") {
+                for (let i = 0; i < s.points.length - 1; i++) {
+                  const p1 = { x: s.x + s.points[i].x, y: s.y + s.points[i].y };
+                  const p2 = { x: s.x + s.points[i + 1].x, y: s.y + s.points[i + 1].y };
+                  
+                  // Calculate distance to line segment
+                  const l2 = (p2.x - p1.x) ** 2 + (p2.y - p1.y) ** 2;
+                  if (l2 === 0) {
+                    if (Math.sqrt((worldPoint.x - p1.x) ** 2 + (worldPoint.y - p1.y) ** 2) < eraserRadius) {
+                      return false;
+                    }
+                    continue;
+                  }
+                  
+                  let t = ((worldPoint.x - p1.x) * (p2.x - p1.x) + (worldPoint.y - p1.y) * (p2.y - p1.y)) / l2;
+                  t = Math.max(0, Math.min(1, t));
+                  
+                  const dist = Math.sqrt(
+                    (worldPoint.x - (p1.x + t * (p2.x - p1.x))) ** 2 +
+                    (worldPoint.y - (p1.y + t * (p2.y - p1.y))) ** 2
+                  );
+                  
+                  if (dist < eraserRadius) {
+                    return false; // Remove this shape
+                  }
+                }
+              }
+            }
+            
+            return true; // Keep the shape
+          });
+
+          // Update shapes immediately (erase as we go)
+          if (shapesToKeep.length !== canvas.shapes.length) {
+            set({
+              canvas: {
+                ...canvas,
+                shapes: shapesToKeep,
+              },
+            });
+          }
+        }
+
+        const xs = newPoints.map((p: Point) => p.x);
+        const ys = newPoints.map((p: Point) => p.y);
+        const pathMinX = Math.min(...xs);
+        const pathMinY = Math.min(...ys);
+        const pathMaxX = Math.max(...xs);
+        const pathMaxY = Math.max(...ys);
+
+        updatedShape = {
+          ...eraserShape,
+          points: newPoints,
+          pressures: newPressures,
+          width: pathMaxX - pathMinX,
+          height: pathMaxY - pathMinY,
+          updatedAt: Date.now(),
+        } as EraserShape;
+        break;
+      }
       default:
         updatedShape = shape;
     }
@@ -608,6 +727,16 @@ export const useCanvasStore = create<CanvasStore>()((set, get) => ({
     const drawingShape = interaction.drawingShape;
 
     if (drawingShape) {
+      // Don't add eraser shapes to the canvas, but save history if shapes were erased
+      if (drawingShape.type === "eraser") {
+        set({
+          interaction: DEFAULT_INTERACTION_STATE,
+        });
+        // Save to history so erasing can be undone
+        get().saveToHistory();
+        return;
+      }
+
       const isValidSize =
         drawingShape.width >= CANVAS_CONFIG.MIN_SHAPE_SIZE ||
         drawingShape.height >= CANVAS_CONFIG.MIN_SHAPE_SIZE ||

@@ -12,8 +12,10 @@ import type {
   ArrowShape,
   FreedrawShape,
   TextShape,
+  EraserShape,
   ShapeStyle,
   ResizeHandle,
+  InternalShape,
 } from "@/lib/canvas";
 import { DEFAULT_STYLE, CANVAS_CONFIG } from "@/lib/canvas";
 
@@ -33,10 +35,14 @@ export function generateSeed(): number {
 // Bounds Calculation
 // ============================================
 
-export function getShapeBounds(shape: Shape): Bounds {
-  if (shape.type === "line" || shape.type === "arrow" || shape.type === "freedraw") {
-    const points = shape.points;
-    if (points.length === 0) {
+type ShapeWithPoints = LineShape | ArrowShape | FreedrawShape | EraserShape;
+
+export function getShapeBounds(shape: Shape | InternalShape): Bounds {
+  const shapeType = shape.type;
+  if (shapeType === "line" || shapeType === "arrow" || shapeType === "freedraw" || shapeType === "eraser") {
+    const shapeWithPoints = shape as ShapeWithPoints;
+    const points = shapeWithPoints.points;
+    if (!points || points.length === 0) {
       return { x: shape.x, y: shape.y, width: 0, height: 0 };
     }
 

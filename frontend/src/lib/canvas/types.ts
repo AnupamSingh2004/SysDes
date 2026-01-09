@@ -29,7 +29,8 @@ export type ShapeType =
   | "line"
   | "arrow"
   | "text"
-  | "freedraw";
+  | "freedraw"
+  | "eraser";
 
 export type StrokeStyle = "solid" | "dashed" | "dotted";
 export type FillStyle = "solid" | "hachure" | "cross-hatch" | "none";
@@ -112,7 +113,13 @@ export interface FreedrawShape extends BaseShape {
   pressures: number[];
 }
 
-// Union type for all shapes
+export interface EraserShape extends BaseShape {
+  type: "eraser";
+  points: Point[];
+  pressures: number[];
+}
+
+// Union type for all shapes (eraser is internal only, not persisted)
 export type Shape =
   | RectangleShape
   | EllipseShape
@@ -120,6 +127,9 @@ export type Shape =
   | ArrowShape
   | TextShape
   | FreedrawShape;
+
+// Internal shape type that includes eraser for interaction tracking
+export type InternalShape = Shape | EraserShape;
 
 // ============================================
 // Canvas State
@@ -221,8 +231,8 @@ export interface InteractionState {
   // For selection box
   selectionBox: Bounds | null;
 
-  // Shape being drawn (preview)
-  drawingShape: Shape | null;
+  // Shape being drawn (preview) - includes eraser for internal tracking
+  drawingShape: InternalShape | null;
 
   // Hover state
   hoveredShapeId: string | null;
