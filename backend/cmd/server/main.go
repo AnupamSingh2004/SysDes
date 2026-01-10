@@ -15,6 +15,7 @@ import (
 	"github.com/AnupamSingh2004/SysDes/backend/internal/shared/config"
 	"github.com/AnupamSingh2004/SysDes/backend/internal/shared/database"
 	"github.com/AnupamSingh2004/SysDes/backend/internal/shared/logger"
+	"github.com/AnupamSingh2004/SysDes/backend/internal/whiteboard"
 )
 
 func main() {
@@ -44,6 +45,11 @@ func main() {
 	projectService := project.NewService(projectRepo)
 	projectHandler := project.NewHandler(projectService)
 
+	// Initialize whiteboard domain
+	whiteboardRepo := whiteboard.NewRepository(db)
+	whiteboardService := whiteboard.NewService(whiteboardRepo)
+	whiteboardHandler := whiteboard.NewHandler(whiteboardService)
+
 	// Create Fiber app
 	app := fiber.New(fiber.Config{
 		AppName:      "SysDes API",
@@ -63,7 +69,7 @@ func main() {
 	}))
 
 	// Setup routes
-	setupRoutes(app, cfg, authHandler, authMiddleware, projectHandler)
+	setupRoutes(app, cfg, authHandler, authMiddleware, projectHandler, whiteboardHandler)
 
 	// Graceful shutdown
 	go func() {
@@ -82,7 +88,7 @@ func main() {
 	}
 }
 
-func setupRoutes(app *fiber.App, cfg *config.Config, authHandler *auth.Handler, authMiddleware *auth.Middleware, projectHandler *project.Handler) {
+func setupRoutes(app *fiber.App, cfg *config.Config, authHandler *auth.Handler, authMiddleware *auth.Middleware, projectHandler *project.Handler, whiteboardHandler *whiteboard.Handler) {
 	// API v1
 	api := app.Group("/api/v1")
 
@@ -119,6 +125,9 @@ func setupRoutes(app *fiber.App, cfg *config.Config, authHandler *auth.Handler, 
 
 	// Project routes
 	projectHandler.RegisterRoutes(api, authMiddleware.RequireAuth)
+
+	// Whiteboard routes
+	whiteboardHandler.RegisterRoutes(api, authMiddleware.RequireAuth)
 }
 
 // Custom error handler

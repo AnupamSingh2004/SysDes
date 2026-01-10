@@ -5,14 +5,15 @@
 "use client";
 
 import { useParams, useRouter } from "next/navigation";
-import { useCallback, useEffect, useState } from "react";
-import { ArrowLeft, Save, Share2, Settings, Sparkles, X } from "lucide-react";
+import { useCallback, useEffect, useState, useRef } from "react";
+import { ArrowLeft, Save, Share2, Settings, Sparkles, X, Check, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { CustomCanvas, CanvasToolbar, StylePanel, TextStylePanel, useCanvasStore } from "@/components/canvas";
 import { Logo } from "@/components/shared";
-import { api, Project, Suggestion } from "@/lib/api";
+import { api, Project, Suggestion, Whiteboard, CanvasDocument } from "@/lib/api";
 import { useAuthContext } from "@/providers/auth-provider";
+import type { Shape } from "@/lib/canvas";
 
 // Mock suggestions
 const mockSuggestions: Suggestion[] = [
@@ -37,17 +38,21 @@ export default function CanvasPage() {
   const router = useRouter();
   const { user, isLoading: authLoading } = useAuthContext();
   const [project, setProject] = useState<Project | null>(null);
+  const [whiteboard, setWhiteboard] = useState<Whiteboard | null>(null);
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
   const [error, setError] = useState<string | null>(null);
   const [showAISidebar, setShowAISidebar] = useState(false);
   const [showStylePanel, setShowStylePanel] = useState(true);
   const [suggestions] = useState<Suggestion[]>(mockSuggestions);
+  const lastSaveRef = useRef<number>(0);
 
   const projectId = params.id as string;
 
-  // Load project
+  // Load project and whiteboard
   useEffect(() => {
-    async function loadProject() {
+    async function loadProjectAndWhiteboard() {
       if (!projectId) return;
       
       // Wait for auth to finish loading
@@ -60,8 +65,38 @@ export default function CanvasPage() {
       }
 
       try {
+        // Load project
         const data = await api.getProject(projectId);
         setProject(data);
+        
+        // Load whiteboard (creates default if none exists)
+        const wb = await api.getDefaultWhiteboard(projectId);
+        setWhiteboard(wb);
+        
+        // Load canvas data from whiteboard
+        if (wb.data && typeof wb.data === 'object') {
+          const canvasData = wb.data as CanvasDocument;
+          const store = useCanvasStore.getState();
+          
+          // Load shapes if available
+          if (canvasData.shapes && Array.isArray(canvasData.shapes)) {
+            // Type assertion via unknown for JSON data from backend
+            store.loadDocument(canvasData.shapes as unknown as Shape[]);
+          }
+          
+          // Load viewport if available
+          if (canvasData.viewport) {
+            store.setScroll(canvasData.viewport.scrollX || 0, canvasData.viewport.scrollY || 0);
+            store.setZoom(canvasData.viewport.zoom || 1);
+          }
+          
+          // Load style if available
+          if (canvasData.style) {
+            // Type assertion for JSON data
+            store.setStyle(canvasData.style as unknown as Parameters<typeof store.setStyle>[0]);
+          }
+        }
+        
         setError(null);
       } catch (err) {
         console.error("Failed to load project:", err);
@@ -72,28 +107,82 @@ export default function CanvasPage() {
       }
     }
 
-    loadProject();
+    loadProjectAndWhiteboard();
   }, [projectId, user, authLoading, router]);
 
   // Handle save
   const handleSave = useCallback(async () => {
-    if (!project) return;
+    if (!project || saving) return;
+
+    // Debounce saves
+    const now = Date.now();
+    if (now - lastSaveRef.current < 1000) return;
+    lastSaveRef.current = now;
+
+    setSaving(true);
+    setSaveStatus('saving');
 
     try {
-      const { shapes, scrollX, scrollY, zoom } = useCanvasStore.getState().canvas;
+      const { shapes, scrollX, scrollY, zoom, currentStyle } = useCanvasStore.getState().canvas;
       
-      // Save canvas data to project
-      // TODO: Add data field to Project type when backend supports it
-      console.log("Saving canvas state:", { shapes: shapes.length, viewport: { scrollX, scrollY, zoom } });
-      await api.updateProject(project.id, {
-        name: project.name, // Keep existing name
-      });
+      // Create canvas document
+      const canvasData: CanvasDocument = {
+        version: 1,
+        shapes: shapes as unknown as CanvasDocument['shapes'],
+        viewport: { scrollX, scrollY, zoom },
+        style: currentStyle as unknown as CanvasDocument['style'],
+        createdAt: whiteboard?.data ? (whiteboard.data as CanvasDocument).createdAt || Date.now() : Date.now(),
+        updatedAt: Date.now(),
+      };
       
-      console.log("Project saved");
+      // Save canvas data to backend
+      const updatedWhiteboard = await api.saveCanvas(project.id, canvasData);
+      setWhiteboard(updatedWhiteboard);
+      
+      setSaveStatus('saved');
+      console.log("Canvas saved:", { shapes: shapes.length, viewport: { scrollX, scrollY, zoom } });
+      
+      // Reset save status after 2 seconds
+      setTimeout(() => setSaveStatus('idle'), 2000);
     } catch (error) {
       console.error("Failed to save:", error);
+      setSaveStatus('error');
+      setTimeout(() => setSaveStatus('idle'), 3000);
+    } finally {
+      setSaving(false);
     }
-  }, [project]);
+  }, [project, whiteboard, saving]);
+
+  // Auto-save when shapes change (debounced)
+  useEffect(() => {
+    if (!project || loading) return;
+    
+    let timeoutId: NodeJS.Timeout | null = null;
+    let lastShapeCount = useCanvasStore.getState().canvas.shapes.length;
+    
+    // Subscribe to store changes
+    const unsubscribe = useCanvasStore.subscribe((state) => {
+      const currentShapeCount = state.canvas.shapes.length;
+      
+      // Only auto-save if shapes have changed
+      if (currentShapeCount !== lastShapeCount) {
+        lastShapeCount = currentShapeCount;
+        
+        // Clear previous timeout
+        if (timeoutId) clearTimeout(timeoutId);
+        
+        // Debounce auto-save by 3 seconds after last change
+        timeoutId = setTimeout(() => {
+          handleSave();
+        }, 3000);
+      }
+    });
+    
+    return () => {
+      unsubscribe();
+      if (timeoutId) clearTimeout(timeoutId);
+    };
+  }, [project, loading, handleSave]);
 
   // Keyboard shortcut for save
   useEffect(() => {
@@ -168,11 +257,37 @@ export default function CanvasPage() {
           </Button>
           <Button
             size="sm"
-            className="bg-blue-600 hover:bg-blue-700 text-white"
+            className={`min-w-[100px] transition-all ${
+              saveStatus === 'saved' 
+                ? 'bg-green-600 hover:bg-green-700' 
+                : saveStatus === 'error'
+                ? 'bg-red-600 hover:bg-red-700'
+                : 'bg-blue-600 hover:bg-blue-700'
+            } text-white`}
             onClick={handleSave}
+            disabled={saving}
           >
-            <Save size={18} className="mr-2" />
-            Save
+            {saveStatus === 'saving' ? (
+              <>
+                <Loader2 size={18} className="mr-2 animate-spin" />
+                Saving...
+              </>
+            ) : saveStatus === 'saved' ? (
+              <>
+                <Check size={18} className="mr-2" />
+                Saved!
+              </>
+            ) : saveStatus === 'error' ? (
+              <>
+                <X size={18} className="mr-2" />
+                Error
+              </>
+            ) : (
+              <>
+                <Save size={18} className="mr-2" />
+                Save
+              </>
+            )}
           </Button>
         </div>
       </header>

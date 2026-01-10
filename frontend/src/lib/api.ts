@@ -125,6 +125,64 @@ class ApiClient {
     });
   }
 
+  // ==================== Whiteboards ====================
+
+  // Get default whiteboard for a project (creates one if none exists)
+  async getDefaultWhiteboard(projectId: string) {
+    return this.request<Whiteboard>(`/projects/${projectId}/whiteboards/default`);
+  }
+
+  // Get all whiteboards for a project
+  async getProjectWhiteboards(projectId: string) {
+    return this.request<{ whiteboards: Whiteboard[]; total: number }>(`/projects/${projectId}/whiteboards`);
+  }
+
+  // Get a specific whiteboard
+  async getWhiteboard(whiteboardId: string) {
+    return this.request<Whiteboard>(`/whiteboards/${whiteboardId}`);
+  }
+
+  // Create a new whiteboard
+  async createWhiteboard(projectId: string, data: { name?: string; data?: CanvasDocument }) {
+    return this.request<Whiteboard>(`/projects/${projectId}/whiteboards`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  // Update a whiteboard
+  async updateWhiteboard(whiteboardId: string, data: { name?: string; data?: CanvasDocument }) {
+    return this.request<Whiteboard>(`/whiteboards/${whiteboardId}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
+  // Save canvas data for a project's default whiteboard (simplified API)
+  async saveCanvas(projectId: string, canvasData: CanvasDocument) {
+    return this.request<Whiteboard>(`/projects/${projectId}/whiteboards/default/canvas`, {
+      method: 'PUT',
+      body: JSON.stringify({ data: canvasData }),
+    });
+  }
+
+  // Save canvas data for a specific whiteboard
+  async saveWhiteboardCanvas(whiteboardId: string, canvasData: CanvasDocument) {
+    return this.request<Whiteboard>(`/whiteboards/${whiteboardId}/canvas`, {
+      method: 'PUT',
+      body: JSON.stringify({ data: canvasData }),
+    });
+  }
+
+  // Delete a whiteboard
+  async deleteWhiteboard(whiteboardId: string) {
+    await fetch(`${this.baseUrl}/whiteboards/${whiteboardId}`, {
+      method: 'DELETE',
+      credentials: 'include',
+    });
+    return { success: true };
+  }
+
   // AI Analysis
   async analyzeDesign(projectId: string, canvasData: object) {
     return this.request<{ suggestions: Suggestion[] }>(`/ai/analyze`, {
@@ -176,6 +234,50 @@ export interface Suggestion {
   title: string;
   description: string;
   priority: 'high' | 'medium' | 'low';
+}
+
+export interface Whiteboard {
+  id: string;
+  project_id: string;
+  name: string;
+  data: CanvasDocument | null;
+  created_at: string;
+  updated_at: string;
+}
+
+// Canvas document format for persistence
+export interface CanvasDocument {
+  version: number;
+  shapes: Shape[];
+  viewport: {
+    scrollX: number;
+    scrollY: number;
+    zoom: number;
+  };
+  style: ShapeStyle;
+  createdAt: number;
+  updatedAt: number;
+}
+
+// Shape types (simplified for API)
+export interface Shape {
+  id: string;
+  type: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  [key: string]: unknown; // Allow additional properties
+}
+
+export interface ShapeStyle {
+  strokeColor: string;
+  strokeWidth: number;
+  strokeStyle: string;
+  fillColor: string;
+  fillStyle: string;
+  opacity: number;
+  roughness: number;
 }
 
 // Export singleton instance
