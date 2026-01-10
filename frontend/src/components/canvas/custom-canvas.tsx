@@ -14,6 +14,22 @@ import { ShapeRenderer } from "./shape-renderer";
 import { screenToCanvas, getResizeHandleAtPoint, getCursorForHandle, getShapeBounds } from "./utils";
 
 // ============================================
+// Helper: Check if point is in shape bounds (for dragging selected shapes)
+// This ignores hollow/fill logic - just checks bounding box
+// ============================================
+
+function isPointInShapeForDrag(point: Point, shape: Shape): boolean {
+  const bounds = getShapeBounds(shape);
+  const padding = Math.max(shape.strokeWidth / 2, 4);
+  return (
+    point.x >= bounds.x - padding &&
+    point.x <= bounds.x + bounds.width + padding &&
+    point.y >= bounds.y - padding &&
+    point.y <= bounds.y + bounds.height + padding
+  );
+}
+
+// ============================================
 // Text Measurement Utilities
 // ============================================
 
@@ -402,7 +418,24 @@ export function CustomCanvas({ className }: CustomCanvasProps) {
       switch (canvas.activeTool) {
         case "select": {
           const clickedShape = storeActions.getShapeAtPoint(point);
-          if (clickedShape) {
+          
+          // Check if clicking on any already selected shape (for dragging multiple)
+          const clickedOnSelection = canvas.selectedIds.length > 0 && 
+            canvas.shapes.some(s => 
+              canvas.selectedIds.includes(s.id) && isPointInShapeForDrag(point, s)
+            );
+          
+          if (clickedOnSelection) {
+            // Start dragging the entire selection
+            storeActions.startDragging(point);
+            localStateRef.current.isDragging = true;
+            
+            const selected = state.canvas.shapes.filter(s => canvas.selectedIds.includes(s.id));
+            localStateRef.current.draggedShapes.clear();
+            selected.forEach(s => {
+              localStateRef.current.draggedShapes.set(s.id, { x: s.x, y: s.y });
+            });
+          } else if (clickedShape) {
             if (e.shiftKey) {
               storeActions.selectShape(clickedShape.id, true);
             } else if (!canvas.selectedIds.includes(clickedShape.id)) {

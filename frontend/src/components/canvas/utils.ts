@@ -181,12 +181,38 @@ function isPointInRectangle(point: Point, shape: RectangleShape): boolean {
   }
 
   const halfStroke = shape.strokeWidth / 2;
-  return (
+  const threshold = Math.max(shape.strokeWidth, 8); // Minimum hit area
+  
+  // Check if point is within outer bounds (including stroke)
+  const inOuterBounds = (
     point.x >= shape.x - halfStroke &&
     point.x <= shape.x + shape.width + halfStroke &&
     point.y >= shape.y - halfStroke &&
     point.y <= shape.y + shape.height + halfStroke
   );
+  
+  if (!inOuterBounds) return false;
+  
+  // If shape has no fill or transparent fill, only hit-test the stroke/border area
+  const hasNoFill = shape.fillStyle === "none" || 
+                    shape.fillColor === "transparent" || 
+                    shape.fillColor === "rgba(0,0,0,0)" ||
+                    shape.fillColor === "";
+  
+  if (hasNoFill) {
+    // Check if point is within inner bounds (inside the stroke)
+    const inInnerBounds = (
+      point.x > shape.x + threshold &&
+      point.x < shape.x + shape.width - threshold &&
+      point.y > shape.y + threshold &&
+      point.y < shape.y + shape.height - threshold
+    );
+    // If inside inner bounds, not on the stroke
+    return !inInnerBounds;
+  }
+  
+  // Shape has fill, hit anywhere inside
+  return true;
 }
 
 function isPointInEllipse(point: Point, shape: EllipseShape): boolean {
@@ -201,7 +227,31 @@ function isPointInEllipse(point: Point, shape: EllipseShape): boolean {
 
   const dx = point.x - cx;
   const dy = point.y - cy;
-  return (dx * dx) / (rx * rx) + (dy * dy) / (ry * ry) <= 1;
+  const normalizedDist = (dx * dx) / (rx * rx) + (dy * dy) / (ry * ry);
+  
+  // Check if point is within outer ellipse
+  if (normalizedDist > 1) return false;
+  
+  // If shape has no fill or transparent fill, only hit-test the stroke/border area
+  const hasNoFill = shape.fillStyle === "none" || 
+                    shape.fillColor === "transparent" || 
+                    shape.fillColor === "rgba(0,0,0,0)" ||
+                    shape.fillColor === "";
+  
+  if (hasNoFill) {
+    const threshold = Math.max(shape.strokeWidth, 8);
+    const innerRx = Math.max(0, shape.width / 2 - threshold);
+    const innerRy = Math.max(0, shape.height / 2 - threshold);
+    
+    if (innerRx > 0 && innerRy > 0) {
+      const innerNormalizedDist = (dx * dx) / (innerRx * innerRx) + (dy * dy) / (innerRy * innerRy);
+      // If inside inner ellipse, not on the stroke
+      return innerNormalizedDist >= 1;
+    }
+  }
+  
+  // Shape has fill, hit anywhere inside
+  return true;
 }
 
 function isPointNearLine(point: Point, shape: LineShape | ArrowShape): boolean {

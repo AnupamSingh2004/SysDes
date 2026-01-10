@@ -1312,12 +1312,34 @@ export const useCanvasStore = create<CanvasStore>()((set, get) => ({
 
   getShapeAtPoint: (point) => {
     const shapes = get().canvas.shapes;
+    
+    // Find all shapes that contain the point
+    const hitShapes: Shape[] = [];
     for (let i = shapes.length - 1; i >= 0; i--) {
       if (isPointInShape(point, shapes[i])) {
-        return shapes[i];
+        hitShapes.push(shapes[i]);
       }
     }
-    return null;
+    
+    if (hitShapes.length === 0) return null;
+    if (hitShapes.length === 1) return hitShapes[0];
+    
+    // Multiple shapes - prioritize by:
+    // 1. Text shapes (highest priority - always selectable)
+    // 2. Smaller shapes (by area)
+    // 3. Z-order (shapes drawn later)
+    
+    const textShape = hitShapes.find(s => s.type === "text");
+    if (textShape) return textShape;
+    
+    // Sort by area (smallest first) and return the smallest
+    hitShapes.sort((a, b) => {
+      const areaA = a.width * a.height;
+      const areaB = b.width * b.height;
+      return areaA - areaB;
+    });
+    
+    return hitShapes[0];
   },
 
   getSelectedShapes: () => {

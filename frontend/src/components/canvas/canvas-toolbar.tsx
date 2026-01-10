@@ -274,7 +274,7 @@ export function StylePanel({ className }: { className?: string }) {
   const [isExpanded, setIsExpanded] = React.useState(true);
 
   return (
-    <div className={cn("bg-zinc-900/95 backdrop-blur border border-zinc-800 rounded-xl overflow-hidden shadow-xl", className)}>
+    <div className={cn("bg-zinc-900/95 backdrop-blur border border-zinc-800 rounded-xl shadow-xl", className)}>
       {/* Header - Always visible */}
       <button
         onClick={() => setIsExpanded(!isExpanded)}
@@ -540,7 +540,7 @@ export function TextStylePanel({ className }: { className?: string }) {
   };
 
   return (
-    <div className={cn("bg-zinc-900/95 backdrop-blur border border-zinc-800 rounded-xl overflow-hidden shadow-xl", className)}>
+    <div className={cn("bg-zinc-900/95 backdrop-blur border border-zinc-800 rounded-xl shadow-xl", className)}>
       {/* Header */}
       <button
         onClick={() => setIsExpanded(!isExpanded)}
