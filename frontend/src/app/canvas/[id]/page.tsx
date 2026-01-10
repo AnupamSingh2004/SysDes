@@ -70,31 +70,36 @@ export default function CanvasPage() {
         setProject(data);
         
         // Load whiteboard (creates default if none exists)
-        const wb = await api.getDefaultWhiteboard(projectId);
-        setWhiteboard(wb);
-        
-        // Load canvas data from whiteboard
-        if (wb.data && typeof wb.data === 'object') {
-          const canvasData = wb.data as CanvasDocument;
-          const store = useCanvasStore.getState();
+        try {
+          const wb = await api.getDefaultWhiteboard(projectId);
+          setWhiteboard(wb);
           
-          // Load shapes if available
-          if (canvasData.shapes && Array.isArray(canvasData.shapes)) {
-            // Type assertion via unknown for JSON data from backend
-            store.loadDocument(canvasData.shapes as unknown as Shape[]);
+          // Load canvas data from whiteboard
+          if (wb.data && typeof wb.data === 'object') {
+            const canvasData = wb.data as CanvasDocument;
+            const store = useCanvasStore.getState();
+            
+            // Load shapes if available
+            if (canvasData.shapes && Array.isArray(canvasData.shapes)) {
+              // Type assertion via unknown for JSON data from backend
+              store.loadDocument(canvasData.shapes as unknown as Shape[]);
+            }
+            
+            // Load viewport if available
+            if (canvasData.viewport) {
+              store.setScroll(canvasData.viewport.scrollX || 0, canvasData.viewport.scrollY || 0);
+              store.setZoom(canvasData.viewport.zoom || 1);
+            }
+            
+            // Load style if available
+            if (canvasData.style) {
+              // Type assertion for JSON data
+              store.setStyle(canvasData.style as unknown as Parameters<typeof store.setStyle>[0]);
+            }
           }
-          
-          // Load viewport if available
-          if (canvasData.viewport) {
-            store.setScroll(canvasData.viewport.scrollX || 0, canvasData.viewport.scrollY || 0);
-            store.setZoom(canvasData.viewport.zoom || 1);
-          }
-          
-          // Load style if available
-          if (canvasData.style) {
-            // Type assertion for JSON data
-            store.setStyle(canvasData.style as unknown as Parameters<typeof store.setStyle>[0]);
-          }
+        } catch (wbError) {
+          // Whiteboard failed to load, but project loaded - continue with empty canvas
+          console.warn("Failed to load whiteboard, starting with empty canvas:", wbError);
         }
         
         setError(null);

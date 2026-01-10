@@ -3,6 +3,7 @@ package whiteboard
 import (
 	"errors"
 
+	"github.com/AnupamSingh2004/SysDes/backend/internal/shared/logger"
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
 )
@@ -115,8 +116,10 @@ func (h *Handler) GetDefault(c *fiber.Ctx) error {
 				"error": "access denied",
 			})
 		}
+		logger.Error().Err(err).Str("projectID", projectID.String()).Str("userID", userID.String()).Msg("Failed to get default whiteboard")
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"error": "failed to get default whiteboard",
+			"error":   "failed to get default whiteboard",
+			"details": err.Error(),
 		})
 	}
 
