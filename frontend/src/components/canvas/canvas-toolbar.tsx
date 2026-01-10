@@ -284,7 +284,7 @@ export function StylePanel({ className }: { className?: string }) {
           <div className="w-6 h-6 rounded-md bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
             <Palette size={14} className="text-white" />
           </div>
-          <span className="text-sm font-medium text-zinc-200">Style</span>
+          <span className="text-sm font-medium text-zinc-200">Style</span> 
         </div>
         <div className={cn(
           "p-1 rounded-md transition-all",

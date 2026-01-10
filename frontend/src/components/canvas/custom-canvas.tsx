@@ -258,6 +258,7 @@ export function CustomCanvas({ className }: CustomCanvasProps) {
     draggedShapes: new Map<string, { x: number; y: number }>(),
     drawingShape: null as Shape | null,
     selectionBox: null as Bounds | null,
+    lineEndpoint: null as "start" | "end" | null, // For line/arrow endpoint dragging
   });
 
   // Subscribe to store with minimal re-renders
@@ -317,7 +318,7 @@ export function CustomCanvas({ className }: CustomCanvasProps) {
           }
 
           if (local.isResizing) {
-            storeActions.updateResizing(point, shiftKey);
+            storeActions.updateResizing(point, shiftKey, local.lineEndpoint);
             return;
           }
 
@@ -401,15 +402,50 @@ export function CustomCanvas({ className }: CustomCanvasProps) {
 
       const point = getCanvasPoint(e.clientX, e.clientY);
 
+      // Check for line/arrow endpoint handles first
+      if (canvas.selectedIds.length === 1) {
+        const selectedShape = canvas.shapes.find(s => s.id === canvas.selectedIds[0]);
+        if (selectedShape && (selectedShape.type === "line" || selectedShape.type === "arrow") && "points" in selectedShape) {
+          const points = selectedShape.points;
+          if (points.length >= 2) {
+            const handleRadius = CANVAS_CONFIG.HANDLE_SIZE / 2 / canvas.zoom;
+            const startPoint = { x: selectedShape.x + points[0].x, y: selectedShape.y + points[0].y };
+            const endPoint = { x: selectedShape.x + points[points.length - 1].x, y: selectedShape.y + points[points.length - 1].y };
+            
+            const distToStart = Math.sqrt((point.x - startPoint.x) ** 2 + (point.y - startPoint.y) ** 2);
+            const distToEnd = Math.sqrt((point.x - endPoint.x) ** 2 + (point.y - endPoint.y) ** 2);
+            
+            if (distToStart <= handleRadius * 2) {
+              // Start point handle - use "nw" as marker for start
+              storeActions.startResizing("nw", point);
+              localStateRef.current.isResizing = true;
+              localStateRef.current.lineEndpoint = "start";
+              return;
+            }
+            if (distToEnd <= handleRadius * 2) {
+              // End point handle - use "se" as marker for end
+              storeActions.startResizing("se", point);
+              localStateRef.current.isResizing = true;
+              localStateRef.current.lineEndpoint = "end";
+              return;
+            }
+          }
+        }
+      }
+
       // Check for resize handle first if we have a selection
       if (canvas.selectedIds.length === 1) {
-        const selectionBounds = storeActions.getSelectionBounds();
-        if (selectionBounds) {
-          const handle = getResizeHandleAtPoint(point, selectionBounds, CANVAS_CONFIG.HANDLE_SIZE, canvas.zoom);
-          if (handle) {
-            storeActions.startResizing(handle, point);
-            localStateRef.current.isResizing = true;
-            return;
+        const selectedShape = canvas.shapes.find(s => s.id === canvas.selectedIds[0]);
+        // Skip standard resize handles for lines and arrows
+        if (!selectedShape || (selectedShape.type !== "line" && selectedShape.type !== "arrow")) {
+          const selectionBounds = storeActions.getSelectionBounds();
+          if (selectionBounds) {
+            const handle = getResizeHandleAtPoint(point, selectionBounds, CANVAS_CONFIG.HANDLE_SIZE, canvas.zoom);
+            if (handle) {
+              storeActions.startResizing(handle, point);
+              localStateRef.current.isResizing = true;
+              return;
+            }
           }
         }
       }
@@ -546,6 +582,7 @@ export function CustomCanvas({ className }: CustomCanvasProps) {
       if (local.isResizing) {
         storeActions.finishResizing();
         local.isResizing = false;
+        local.lineEndpoint = null;
       }
 
       if (local.isSelecting) {
@@ -788,6 +825,50 @@ export function CustomCanvas({ className }: CustomCanvasProps) {
     if (!selectionBounds) return null;
 
     const handleSize = CANVAS_CONFIG.HANDLE_SIZE;
+    
+    // Check if the selected shape is a line or arrow
+    const selectedShape = selectedIds.length === 1 
+      ? shapes.find(s => s.id === selectedIds[0])
+      : null;
+    const isLineOrArrow = selectedShape && (selectedShape.type === "line" || selectedShape.type === "arrow");
+    
+    // For lines/arrows, show endpoint handles instead of corner handles
+    if (isLineOrArrow && selectedShape && "points" in selectedShape) {
+      const points = selectedShape.points;
+      if (points.length >= 2) {
+        const startPoint = { x: selectedShape.x + points[0].x, y: selectedShape.y + points[0].y };
+        const endPoint = { x: selectedShape.x + points[points.length - 1].x, y: selectedShape.y + points[points.length - 1].y };
+        
+        return (
+          <g>
+            {/* Start point handle */}
+            <circle
+              cx={startPoint.x}
+              cy={startPoint.y}
+              r={handleSize / 2 / zoom}
+              fill="#ffffff"
+              stroke="#3b82f6"
+              strokeWidth={1.5 / zoom}
+              style={{ cursor: "move" }}
+              data-handle="line-start"
+            />
+            {/* End point handle */}
+            <circle
+              cx={endPoint.x}
+              cy={endPoint.y}
+              r={handleSize / 2 / zoom}
+              fill="#ffffff"
+              stroke="#3b82f6"
+              strokeWidth={1.5 / zoom}
+              style={{ cursor: "move" }}
+              data-handle="line-end"
+            />
+          </g>
+        );
+      }
+    }
+
+    // Standard handles for other shapes
     const handles: { pos: ResizeHandle; x: number; y: number }[] = [
       { pos: "nw", x: selectionBounds.x, y: selectionBounds.y },
       { pos: "n", x: selectionBounds.x + selectionBounds.width / 2, y: selectionBounds.y },

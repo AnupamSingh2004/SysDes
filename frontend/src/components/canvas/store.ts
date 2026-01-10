@@ -128,7 +128,7 @@ interface CanvasStore {
   finishDragging: () => void;
 
   startResizing: (handle: ResizeHandle, point: Point) => void;
-  updateResizing: (point: Point, shiftKey?: boolean) => void;
+  updateResizing: (point: Point, shiftKey?: boolean, lineEndpoint?: "start" | "end" | null) => void;
   finishResizing: () => void;
 
   startPanning: (point: Point) => void;
@@ -852,7 +852,7 @@ export const useCanvasStore = create<CanvasStore>()((set, get) => ({
     });
   },
 
-  updateResizing: (point, shiftKey = false) => {
+  updateResizing: (point, shiftKey = false, lineEndpoint = null) => {
     const state = get();
     const { interaction, canvas } = state;
 
@@ -870,6 +870,61 @@ export const useCanvasStore = create<CanvasStore>()((set, get) => ({
 
     const shapeIndex = canvas.shapes.findIndex((s) => s.id === selectedIds[0]);
     if (shapeIndex === -1) return;
+
+    const currentShape = canvas.shapes[shapeIndex];
+    
+    // Handle line/arrow endpoint dragging
+    if ((currentShape.type === "line" || currentShape.type === "arrow") && lineEndpoint && "points" in currentShape) {
+      const initialPoints = interaction.initialPoints;
+      if (!initialPoints || initialPoints.length < 2) return;
+      
+      const initial = interaction.initialBounds;
+      let newPoints: Point[];
+      let newX = initial.x;
+      let newY = initial.y;
+      
+      if (lineEndpoint === "start") {
+        // Move start point - the shape position changes
+        newX = point.x;
+        newY = point.y;
+        // Recalculate points relative to new origin
+        const endWorldX = initial.x + initialPoints[initialPoints.length - 1].x;
+        const endWorldY = initial.y + initialPoints[initialPoints.length - 1].y;
+        newPoints = [
+          { x: 0, y: 0 }, // Start at origin
+          { x: endWorldX - newX, y: endWorldY - newY }, // End relative to new origin
+        ];
+      } else {
+        // Move end point - shape position stays, just update endpoint
+        newPoints = [
+          { x: 0, y: 0 }, // Start at origin
+          { x: point.x - initial.x, y: point.y - initial.y }, // New end point relative to origin
+        ];
+      }
+      
+      // Calculate new bounds from points
+      const xs = newPoints.map(p => p.x);
+      const ys = newPoints.map(p => p.y);
+      const minX = Math.min(...xs);
+      const minY = Math.min(...ys);
+      const maxX = Math.max(...xs);
+      const maxY = Math.max(...ys);
+      
+      const updatedShape = {
+        ...currentShape,
+        x: newX + minX,
+        y: newY + minY,
+        width: maxX - minX,
+        height: maxY - minY,
+        points: newPoints.map(p => ({ x: p.x - minX, y: p.y - minY })),
+        updatedAt: Date.now(),
+      };
+      
+      const newShapes = [...canvas.shapes];
+      newShapes[shapeIndex] = updatedShape;
+      set({ canvas: { ...canvas, shapes: newShapes } });
+      return;
+    }
 
     const dx = point.x - interaction.dragStartPoint.x;
     const dy = point.y - interaction.dragStartPoint.y;
@@ -933,7 +988,7 @@ export const useCanvasStore = create<CanvasStore>()((set, get) => ({
       if (handle.includes("n")) y = initial.y + initial.height - height;
     }
 
-    const currentShape = canvas.shapes[shapeIndex];
+    const shapeToResize = canvas.shapes[shapeIndex];
     const initialPoints = interaction.initialPoints;
 
     let scaledPoints: Point[] | undefined;
@@ -948,23 +1003,23 @@ export const useCanvasStore = create<CanvasStore>()((set, get) => ({
 
     let updatedShape: Shape;
     if (
-      currentShape.type === "freedraw" ||
-      currentShape.type === "line" ||
-      currentShape.type === "arrow"
+      shapeToResize.type === "freedraw" ||
+      shapeToResize.type === "line" ||
+      shapeToResize.type === "arrow"
     ) {
       updatedShape = {
-        ...currentShape,
+        ...shapeToResize,
         x,
         y,
         width,
         height,
-        points: scaledPoints || currentShape.points,
+        points: scaledPoints || shapeToResize.points,
         updatedAt: Date.now(),
       };
-    } else if (currentShape.type === "text") {
+    } else if (shapeToResize.type === "text") {
       // Scale font size proportionally when resizing text
       // Use the initial font size from when resizing started
-      const initialFontSize = interaction.initialFontSize || currentShape.fontSize;
+      const initialFontSize = interaction.initialFontSize || shapeToResize.fontSize;
       const scaleX = initial.width > 0 ? width / initial.width : 1;
       const scaleY = initial.height > 0 ? height / initial.height : 1;
       // Use the average scale for more natural text scaling
@@ -973,7 +1028,7 @@ export const useCanvasStore = create<CanvasStore>()((set, get) => ({
       const newFontSize = Math.max(6, Math.round(initialFontSize * scale));
       
       updatedShape = {
-        ...currentShape,
+        ...shapeToResize,
         x,
         y,
         width,
@@ -984,7 +1039,7 @@ export const useCanvasStore = create<CanvasStore>()((set, get) => ({
       };
     } else {
       updatedShape = {
-        ...currentShape,
+        ...shapeToResize,
         x,
         y,
         width,
