@@ -189,15 +189,11 @@ export default function CanvasPage() {
           <CustomCanvas className="w-full h-full" />
         </div>
 
-        {/* Right Style Panels - Stacked with proper z-index */}
+        {/* Right Style Panels - Side by side horizontally */}
         {showStylePanel && (
-          <div className="absolute top-4 right-4 z-10 flex flex-col gap-3">
-            <div className="relative z-20">
-              <StylePanel />
-            </div>
-            <div className="relative z-10">
-              <TextStylePanel />
-            </div>
+          <div className="absolute top-4 right-4 z-10 flex flex-row items-start gap-3">
+            <TextStylePanel />
+            <StylePanel />
           </div>
         )}
 

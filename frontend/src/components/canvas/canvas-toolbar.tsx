@@ -274,11 +274,12 @@ export function StylePanel({ className }: { className?: string }) {
   const [isExpanded, setIsExpanded] = React.useState(true);
 
   return (
-    <div className={cn("bg-zinc-900/95 backdrop-blur border border-zinc-800 rounded-xl shadow-xl", className)}>
+    <div className={cn("bg-zinc-900/95 backdrop-blur border border-zinc-800 rounded-xl shadow-xl w-[240px]", className)}>
       {/* Header - Always visible */}
       <button
         onClick={() => setIsExpanded(!isExpanded)}
-        className="w-full flex items-center justify-between p-3 hover:bg-zinc-800/50 transition-colors border-b border-zinc-800/50"
+        className="w-full flex items-center justify-between p-3 hover:bg-zinc-800/50 transition-colors rounded-t-xl"
+        style={{ borderBottom: isExpanded ? '1px solid rgba(63, 63, 70, 0.5)' : 'none' }}
       >
         <div className="flex items-center gap-2">
           <div className="w-6 h-6 rounded-md bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
@@ -300,7 +301,7 @@ export function StylePanel({ className }: { className?: string }) {
 
       {/* Collapsible Content */}
       {isExpanded && (
-        <div className="flex flex-col gap-5 p-4 min-w-[220px]">
+        <div className="flex flex-col gap-5 p-4">
           {/* Stroke Color */}
           <div className="space-y-2">
             <div className="flex items-center justify-between">
@@ -540,11 +541,12 @@ export function TextStylePanel({ className }: { className?: string }) {
   };
 
   return (
-    <div className={cn("bg-zinc-900/95 backdrop-blur border border-zinc-800 rounded-xl shadow-xl", className)}>
+    <div className={cn("bg-zinc-900/95 backdrop-blur border border-zinc-800 rounded-xl shadow-xl w-[240px]", className)}>
       {/* Header */}
       <button
         onClick={() => setIsExpanded(!isExpanded)}
-        className="w-full flex items-center justify-between p-3 hover:bg-zinc-800/50 transition-colors border-b border-zinc-800/50"
+        className="w-full flex items-center justify-between p-3 hover:bg-zinc-800/50 transition-colors rounded-t-xl"
+        style={{ borderBottom: isExpanded ? '1px solid rgba(63, 63, 70, 0.5)' : 'none' }}
       >
         <div className="flex items-center gap-2">
           <div className="w-6 h-6 rounded-md bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center">
@@ -558,7 +560,7 @@ export function TextStylePanel({ className }: { className?: string }) {
       </button>
 
       {isExpanded && (
-        <div className="flex flex-col gap-4 p-4 min-w-[220px]">
+        <div className="flex flex-col gap-4 p-4">
           {/* Font Size */}
           <div className="space-y-2">
             <label className="text-xs font-medium text-zinc-400 uppercase tracking-wider">Font Size</label>
