@@ -150,6 +150,13 @@ export async function captureCanvasFromContainer(container: HTMLElement): Promis
     });
 }
 
+function getAuthHeaders(): Record<string, string> {
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+    const token = typeof window !== 'undefined' ? localStorage.getItem('auth_token') : null;
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+    return headers;
+}
+
 /**
  * Send canvas to AI for interpretation
  */
@@ -159,9 +166,7 @@ export async function interpretSketch(
 ): Promise<InterpretResponse> {
     const response = await fetch(`${API_URL}/ai/interpret`, {
         method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-        },
+        headers: getAuthHeaders(),
         credentials: 'include',
         body: JSON.stringify({ image, explanation }),
     });
@@ -184,9 +189,7 @@ export async function getSuggestions(
 ): Promise<SuggestResponse> {
     const response = await fetch(`${API_URL}/ai/suggest`, {
         method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-        },
+        headers: getAuthHeaders(),
         credentials: 'include',
         body: JSON.stringify({ nodes, edges, context }),
     });
