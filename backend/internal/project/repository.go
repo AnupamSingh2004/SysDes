@@ -120,8 +120,8 @@ func (r *Repository) FindBySlug(ctx context.Context, slug string) (*Project, err
 // Create creates a new project
 func (r *Repository) Create(ctx context.Context, userID uuid.UUID, name, description string) (*Project, error) {
 	query := `
-		INSERT INTO projects (user_id, name, description)
-		VALUES ($1, $2, $3)
+		INSERT INTO projects (user_id, owner_id, name, description)
+		VALUES ($1, $1, $2, $3)
 		RETURNING id, user_id, name, description, is_public, public_slug, created_at, updated_at
 	`
 
