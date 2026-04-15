@@ -71,7 +71,7 @@ export default function LandingPage() {
               <Link href="#how-it-works" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
                 How it works
               </Link>
-              <Link href="https://github.com/AnupamSingh2004/SysDes" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
+              <Link href="https://github.com/amazer1404/SysDes" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
                 GitHub
               </Link>
             </div>
@@ -139,7 +139,7 @@ export default function LandingPage() {
                   <ArrowRight className="w-4 h-4 ml-2" />
                 </Button>
               </Link>
-              <Link href="https://github.com/AnupamSingh2004/SysDes" target="_blank">
+              <Link href="https://github.com/amazer1404/SysDes" target="_blank">
                 <Button size="lg" variant="outline" className="border-border hover:bg-accent px-8 h-12 text-base">
                   <Github className="w-4 h-4 mr-2" />
                   View on GitHub
@@ -329,14 +329,8 @@ export default function LandingPage() {
               </div>
               <span className="font-medium">SysDes</span>
             </div>
-            <p className="text-sm text-muted-foreground">
-              Built with ❤️ by{" "}
-              <Link href="https://github.com/AnupamSingh2004" className="text-foreground/70 hover:text-foreground transition-colors">
-                Anupam Singh
-              </Link>
-            </p>
-            <div className="flex items-center gap-6">
-              <Link href="https://github.com/AnupamSingh2004/SysDes" className="text-muted-foreground hover:text-foreground transition-colors">
+<div className="flex items-center gap-6">
+              <Link href="https://github.com/amazer1404/SysDes" className="text-muted-foreground hover:text-foreground transition-colors">
                 <Github className="w-5 h-5" />
               </Link>
             </div>
