@@ -29,6 +29,7 @@ export function setCachedUser(user: User): void {
 export function removeCachedUser(): void {
   if (typeof window === 'undefined') return;
   localStorage.removeItem(USER_KEY);
+  localStorage.removeItem('auth_token');
 }
 
 // ==================== Auth Check ====================
@@ -37,7 +38,7 @@ export function removeCachedUser(): void {
 
 export function isLoggedIn(): boolean {
   if (typeof window === 'undefined') return false;
-  return document.cookie.includes('logged_in=true');
+  return document.cookie.includes('logged_in=true') || !!localStorage.getItem('auth_token');
 }
 
 // ==================== OAuth Redirects ====================

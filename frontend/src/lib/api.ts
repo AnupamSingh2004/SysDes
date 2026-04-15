@@ -20,9 +20,14 @@ class ApiClient {
     };
 
     // If token provided explicitly, use Authorization header
-    // Otherwise, rely on HTTP-only cookies (credentials: include)
+    // Otherwise, try localStorage (cross-domain) then fall back to HTTP-only cookies
     if (token) {
       headers['Authorization'] = `Bearer ${token}`;
+    } else if (typeof window !== 'undefined') {
+      const localToken = localStorage.getItem('auth_token');
+      if (localToken) {
+        headers['Authorization'] = `Bearer ${localToken}`;
+      }
     }
 
     const response = await fetch(`${this.baseUrl}${endpoint}`, {
