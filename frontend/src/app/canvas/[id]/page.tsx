@@ -6,10 +6,10 @@
 
 import { useParams, useRouter } from "next/navigation";
 import { useCallback, useEffect, useState, useRef } from "react";
-import { ArrowLeft, Save, Share2, Settings, Sparkles, X, Check, Loader2 } from "lucide-react";
+import { ArrowLeft, Save, Share2, Settings, Sparkles, X, Check, Loader2, Download } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { CustomCanvas, CanvasToolbar, StylePanel, TextStylePanel, useCanvasStore } from "@/components/canvas";
+import { CustomCanvas, CanvasToolbar, StylePanel, TextStylePanel, useCanvasStore, ExportDialog } from "@/components/canvas";
 import { Logo } from "@/components/shared";
 import { api, Project, Suggestion, Whiteboard, CanvasDocument } from "@/lib/api";
 import { interpretSketch, captureCanvasFromContainer, InterpretResponse } from "@/lib/ai-service";
@@ -47,6 +47,7 @@ export default function CanvasPage() {
   const [error, setError] = useState<string | null>(null);
   const [showAISidebar, setShowAISidebar] = useState(false);
   const [showStylePanel, setShowStylePanel] = useState(true);
+  const [showExport, setShowExport] = useState(false);
   const [suggestions] = useState<Suggestion[]>(mockSuggestions);
   const [aiProcessing, setAiProcessing] = useState(false);
   const [aiResults, setAiResults] = useState<InterpretResponse | null>(null);
@@ -342,6 +343,15 @@ export default function CanvasPage() {
             Style
           </Button>
           <div className="h-6 w-px bg-border" />
+          <Button
+            variant="ghost"
+            size="sm"
+            className="text-muted-foreground hover:text-foreground"
+            onClick={() => setShowExport(true)}
+          >
+            <Download size={18} className="mr-2" />
+            Export
+          </Button>
           <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground">
             <Share2 size={18} className="mr-2" />
             Share
@@ -562,6 +572,14 @@ export default function CanvasPage() {
           </div>
         )}
       </div>
+
+      {/* Export Dialog */}
+      {showExport && (
+        <ExportDialog
+          canvasContainerRef={canvasContainerRef}
+          onClose={() => setShowExport(false)}
+        />
+      )}
     </div>
   );
 }
