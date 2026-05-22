@@ -16,6 +16,7 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
+import { HeroCanvasPreview } from "@/components/shared/hero-canvas-preview";
 
 // Animation variants
 const fadeInUp = {
@@ -185,13 +186,8 @@ export default function LandingPage() {
                 </div>
 
                 {/* App preview */}
-                <div className="aspect-[16/9] bg-gradient-to-br from-muted/50 to-muted flex items-center justify-center">
-                  <div className="text-center">
-                    <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-purple-500/20 to-pink-500/20 border border-border flex items-center justify-center mx-auto mb-4">
-                      <Layers className="w-10 h-10 text-purple-400" />
-                    </div>
-                    <p className="text-muted-foreground text-sm">Interactive demo coming soon...</p>
-                  </div>
+                <div className="aspect-[16/9] overflow-hidden">
+                  <HeroCanvasPreview />
                 </div>
               </div>
 
