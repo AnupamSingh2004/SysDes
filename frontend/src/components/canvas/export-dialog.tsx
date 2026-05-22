@@ -149,7 +149,10 @@ async function runExport(
   clone.setAttribute("width", String(exportW));
   clone.setAttribute("height", String(exportH));
 
-  // 6. Add background rectangle as very first child
+  // 6. Process colors before adding background (so the bg rect is not affected)
+  processClonedSVG(clone, bg);
+
+  // 7. Add background rectangle as very first child (after color processing)
   const bgColor = bg === "white" ? "#ffffff" : bg === "black" ? "#000000" : "none";
   if (bg !== "transparent") {
     const bgRect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
@@ -160,9 +163,6 @@ async function runExport(
     bgRect.setAttribute("fill", bgColor);
     clone.insertBefore(bgRect, clone.firstChild);
   }
-
-  // 7. Process colors
-  processClonedSVG(clone, bg);
 
   // 8. Serialize to SVG string (add XML namespace for standalone SVG)
   clone.setAttribute("xmlns", "http://www.w3.org/2000/svg");
