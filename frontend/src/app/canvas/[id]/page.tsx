@@ -87,11 +87,11 @@ export default function CanvasPage() {
             const canvasData = wb.data as CanvasDocument;
             const store = useCanvasStore.getState();
 
-            // Load shapes if available
-            if (canvasData.shapes && Array.isArray(canvasData.shapes)) {
-              // Type assertion via unknown for JSON data from backend
-              store.loadDocument(canvasData.shapes as unknown as Shape[]);
-            }
+            // Load shapes (empty array for new canvases so history is initialized)
+            const shapes = (canvasData.shapes && Array.isArray(canvasData.shapes))
+              ? canvasData.shapes as unknown as Shape[]
+              : [];
+            store.loadDocument(shapes);
 
             // Load viewport if available
             if (canvasData.viewport) {
@@ -106,8 +106,9 @@ export default function CanvasPage() {
             }
           }
         } catch (wbError) {
-          // Whiteboard failed to load, but project loaded - continue with empty canvas
+          // Whiteboard failed to load — initialize history so undo works from the start
           console.warn("Failed to load whiteboard, starting with empty canvas:", wbError);
+          useCanvasStore.getState().loadDocument([]);
         }
 
         setError(null);

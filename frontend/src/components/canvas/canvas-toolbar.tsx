@@ -236,6 +236,7 @@ export function CanvasToolbar({ className }: CanvasToolbarProps) {
             <TooltipContent side="right">
               <span>Redo</span>
               <kbd className="ml-2 px-1.5 py-0.5 text-xs bg-muted rounded">⌘⇧Z</kbd>
+              <kbd className="ml-1 px-1.5 py-0.5 text-xs bg-muted rounded">⌘Y</kbd>
             </TooltipContent>
           </Tooltip>
         </div>

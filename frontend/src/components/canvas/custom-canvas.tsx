@@ -690,6 +690,12 @@ export function CustomCanvas({ className }: CustomCanvasProps) {
         return;
       }
 
+      if (ctrl && e.key === "y") {
+        e.preventDefault();
+        storeActions.redo();
+        return;
+      }
+
       if (ctrl && e.key === "a") {
         e.preventDefault();
         storeActions.selectAll();
